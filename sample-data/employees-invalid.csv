@@ -1,0 +1,9 @@
+employee_id,name,department,email,salary
+1,Arun Kumar,Engineering,arun@example.test,42000
+2,,Finance,priya@example.test,39000
+3,Kavin R,Operations,,41000
+4,"Meena, V",Engineering,meena@example.test,45000
+5,Ajay M,Sales,ajay@example.test
+6,Divya K,Finance,divya@example.test,40000,EXTRA_VALUE
+6,Duplicate ID,Support,duplicate@example.test,37000
+7,Rahul P,,rahul@example.test,

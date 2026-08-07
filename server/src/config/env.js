@@ -1,23 +1,49 @@
-import dotenv from 'dotenv';
+ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const port = Number.parseInt(process.env.PORT || '5000', 10);
+function readInteger(name, fallback, minimum = 1) {
+  const rawValue = process.env[name] ?? String(fallback);
+  const value = Number.parseInt(rawValue, 10);
 
-if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-  throw new Error('PORT must be a valid port number.');
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new Error(
+      `${name} must be a safe integer greater than or equal to ${minimum}.`,
+    );
+  }
+
+  return value;
 }
 
 const clientOrigin = process.env.CLIENT_ORIGIN?.trim();
 
 if (!clientOrigin) {
-  throw new Error('CLIENT_ORIGIN environment variable is required.');
+  throw new Error(
+    'CLIENT_ORIGIN environment variable is required.',
+  );
 }
 
 const env = Object.freeze({
-  nodeEnv: process.env.NODE_ENV || 'development',
-  port,
+  nodeEnv: process.env.NODE_ENV?.trim() || 'development',
+
+  port: readInteger('PORT', 5000),
+
   clientOrigin,
+
+  maxUploadBytes: readInteger(
+    'MAX_UPLOAD_BYTES',
+    536870912,
+  ),
+
+  uploadTtlMinutes: readInteger(
+    'UPLOAD_TTL_MINUTES',
+    60,
+  ),
+
+  uploadCleanupIntervalMinutes: readInteger(
+    'UPLOAD_CLEANUP_INTERVAL_MINUTES',
+    10,
+  ),
 });
 
 export default env;

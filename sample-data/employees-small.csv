@@ -1,0 +1,21 @@
+employee_id,name,department,email,salary
+1,Employee 00001,Finance,employee00001@example.test,30001
+2,Employee 00002,Operations,employee00002@example.test,30002
+3,Employee 00003,Sales,employee00003@example.test,30003
+4,Employee 00004,Support,employee00004@example.test,30004
+5,Employee 00005,Engineering,employee00005@example.test,30005
+6,Employee 00006,Finance,employee00006@example.test,30006
+7,Employee 00007,Operations,employee00007@example.test,30007
+8,Employee 00008,Sales,employee00008@example.test,30008
+9,Employee 00009,Support,employee00009@example.test,30009
+10,Employee 00010,Engineering,employee00010@example.test,30010
+11,Employee 00011,Finance,employee00011@example.test,30011
+12,Employee 00012,Operations,employee00012@example.test,30012
+13,Employee 00013,Sales,employee00013@example.test,30013
+14,Employee 00014,Support,employee00014@example.test,30014
+15,Employee 00015,Engineering,employee00015@example.test,30015
+16,Employee 00016,Finance,employee00016@example.test,30016
+17,Employee 00017,Operations,employee00017@example.test,30017
+18,Employee 00018,Sales,employee00018@example.test,30018
+19,Employee 00019,Support,employee00019@example.test,30019
+20,Employee 00020,Engineering,employee00020@example.test,30020
