@@ -1,0 +1,247 @@
+ * {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: #e5e7eb;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(99, 102, 241, 0.18),
+      transparent 30%
+    ),
+    #07111f;
+}
+
+button {
+  font: inherit;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  min-height: 82px;
+  padding: 16px 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(7, 17, 31, 0.85);
+  backdrop-filter: blur(16px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-weight: 800;
+  background: linear-gradient(
+    135deg,
+    #6366f1,
+    #22d3ee
+  );
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.brand p {
+  margin: 3px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.week-badge {
+  padding: 8px 14px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 999px;
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.main-content {
+  width: min(1100px, calc(100% - 40px));
+  margin: auto;
+  padding: 80px 0;
+}
+
+.hero {
+  max-width: 800px;
+}
+
+.eyebrow,
+.card-label {
+  color: #a5b4fc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.hero h2 {
+  margin: 14px 0;
+  font-size: clamp(38px, 6vw, 72px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.hero h2 span {
+  color: #818cf8;
+}
+
+.hero p {
+  max-width: 700px;
+  color: #94a3b8;
+  line-height: 1.8;
+}
+
+.dashboard-grid {
+  margin-top: 60px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+}
+
+.connection-card,
+.checkpoint-card {
+  min-height: 300px;
+  padding: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 22px;
+  background: rgba(15, 28, 46, 0.8);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.25);
+}
+
+.connection-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.connection-indicator {
+  width: 13px;
+  height: 13px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 15px rgba(250, 204, 21, 0.6);
+}
+
+.connection-card.connected
+  .connection-indicator {
+  background: #34d399;
+  box-shadow: 0 0 15px rgba(52, 211, 153, 0.6);
+}
+
+.connection-card.unavailable
+  .connection-indicator {
+  background: #fb7185;
+  box-shadow: 0 0 15px rgba(251, 113, 133, 0.6);
+}
+
+.connection-content h2 {
+  margin: 0 0 10px;
+}
+
+.connection-content p {
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.connection-content button {
+  margin-top: 15px;
+  padding: 10px 16px;
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  border-radius: 10px;
+  color: #e0e7ff;
+  background: rgba(99, 102, 241, 0.15);
+  cursor: pointer;
+}
+
+.connection-content button:hover {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.checkpoint-card h3 {
+  margin: 12px 0 24px;
+  font-size: 24px;
+}
+
+.checkpoint-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkpoint-card li {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0;
+  color: #cbd5e1;
+}
+
+.checkpoint-card li span {
+  color: #34d399;
+}
+
+footer {
+  padding: 22px;
+  border-top: 1px solid rgba(148, 163, 184, 0.13);
+  color: #64748b;
+  text-align: center;
+  font-size: 12px;
+}
+
+@media (max-width: 800px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    padding: 14px 20px;
+  }
+
+  .brand p {
+    display: none;
+  }
+
+  .main-content {
+    padding: 55px 0;
+  }
+}
+
+@media (max-width: 500px) {
+  .week-badge {
+    font-size: 10px;
+    padding: 7px 10px;
+  }
+
+  .hero h2 {
+    font-size: 42px;
+  }
+
+  .connection-card,
+  .checkpoint-card {
+    padding: 22px;
+  }
+}
