@@ -72,6 +72,18 @@ export default function UploadDropzone({
     },
   });
 
+  function handleOpen(event) {
+    if (disabled) {
+      return;
+    }
+
+    if (event?.stopPropagation) {
+      event.stopPropagation();
+    }
+
+    open();
+  }
+
   return (
     <div
       {...getRootProps({
@@ -82,6 +94,18 @@ export default function UploadDropzone({
               : ''
           }`,
       })}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onClick={handleOpen}
+      onKeyDown={(event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          handleOpen(event);
+        }
+      }}
     >
       <input
         {...getInputProps()}
@@ -125,7 +149,7 @@ export default function UploadDropzone({
       <button
         type="button"
         className="secondary-button"
-        onClick={open}
+        onClick={handleOpen}
         disabled={disabled}
       >
         Choose CSV file
