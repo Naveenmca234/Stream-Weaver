@@ -92,13 +92,13 @@ export default function UploadDropzone({
       </div>
 
       <h2>
-        Drop your CSV dataset here
+        Drop your CSV file here
       </h2>
 
       <p>
         The browser sends the file
         directly to StreamWeaver's
-        streaming upload pipeline.
+        upload pipeline for preview.
       </p>
 
       <button
