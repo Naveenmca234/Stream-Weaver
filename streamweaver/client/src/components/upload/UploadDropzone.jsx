@@ -112,13 +112,14 @@ export default function UploadDropzone({
           marginTop: '0.5rem',
           padding: '0.35rem 0.75rem',
           borderRadius: '999px',
-          backgroundColor: '#e8f8ef',
-          color: '#17663b',
-          fontSize: '0.85rem',
+          backgroundColor: '#f3f4f6',
+          color: '#374151',
+          fontSize: '0.8rem',
           fontWeight: 600,
+          border: '1px solid #d1d5db',
         }}
       >
-        Ready to upload
+        Fast preview ready
       </div>
 
       <button
