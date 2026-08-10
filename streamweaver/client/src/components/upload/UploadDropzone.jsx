@@ -111,7 +111,7 @@ export default function UploadDropzone({
         {...getInputProps()}
       />
 
-      <div className="upload-symbol">
+      <div className="upload-symbol" style={{ transition: 'transform 0.2s ease' }}>
         <Upload size={26} />
       </div>
 
