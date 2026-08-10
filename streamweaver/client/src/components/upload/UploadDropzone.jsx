@@ -105,6 +105,22 @@ export default function UploadDropzone({
         One CSV file at a time.
       </p>
 
+      <div
+        className="upload-status-pill"
+        style={{
+          display: 'inline-block',
+          marginTop: '0.5rem',
+          padding: '0.35rem 0.75rem',
+          borderRadius: '999px',
+          backgroundColor: '#e8f8ef',
+          color: '#17663b',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+        }}
+      >
+        Ready to upload
+      </div>
+
       <button
         type="button"
         className="secondary-button"
