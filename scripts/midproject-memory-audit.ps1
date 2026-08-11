@@ -161,14 +161,24 @@ while (-not $curlProcess.HasExited) {
 }
 
 $curlProcess.WaitForExit()
+$curlProcess.Refresh()
 $stopwatch.Stop()
 
-if ($curlProcess.ExitCode -ne 0) {
-    $curlError = if (Test-Path $ErrorFile) { Get-Content $ErrorFile -Raw } else { "Unknown curl error" }
-    throw "curl.exe failed with exit code $($curlProcess.ExitCode). $curlError"
+# Windows PowerShell can occasionally expose a null ExitCode on a Start-Process
+# object after redirected I/O. Do not treat null as failure; validate the actual
+# HTTP response body as the source of truth.
+$curlExitCode = $curlProcess.ExitCode
+$curlError = if (Test-Path $ErrorFile) { Get-Content $ErrorFile -Raw } else { "" }
+$responseText = if (Test-Path $ResponseFile) { Get-Content $ResponseFile -Raw } else { "" }
+
+if ($null -ne $curlExitCode -and [int]$curlExitCode -ne 0) {
+    throw "curl.exe failed with exit code $curlExitCode. $curlError"
 }
 
-$responseText = Get-Content $ResponseFile -Raw
+if ([string]::IsNullOrWhiteSpace($responseText)) {
+    $exitDisplay = if ($null -eq $curlExitCode) { "unavailable" } else { [string]$curlExitCode }
+    throw "curl.exe returned no upload response. Exit code: $exitDisplay. $curlError"
+}
 
 try {
     $uploadResponse = $responseText | ConvertFrom-Json
