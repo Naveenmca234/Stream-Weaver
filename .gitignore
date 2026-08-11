@@ -24,6 +24,10 @@ logs/
 # Generated / large sample data
 sample-data/generated/
 sample-data/employees-medium.csv
+benchmark-data/
+
+# Benchmark scratch output
+scripts/.benchmark-temp/
 
 # Logs
 *.log
