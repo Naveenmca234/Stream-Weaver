@@ -485,6 +485,13 @@ a:focus-visible {
   line-height: 1.65;
 }
 
+.upload-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .primary-button,
 .secondary-button,
 .icon-button {
