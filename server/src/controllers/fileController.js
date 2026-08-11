@@ -1,4 +1,4 @@
- import {
+import {
   getUploadConfiguration,
   streamCsvUpload,
 } from '../services/uploadService.js';
@@ -6,6 +6,10 @@
 import {
   createCsvPreview,
 } from '../services/previewService.js';
+
+import {
+  createMappedRowsPreview,
+} from '../services/mappingService.js';
 
 export function getFileUploadConfig(
   _request,
@@ -68,6 +72,29 @@ export async function getCsvPreview(
       success: true,
       message:
         'CSV preview generated successfully',
+      data: preview,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function previewMappedRows(
+  request,
+  response,
+  next,
+) {
+  try {
+    const preview =
+      await createMappedRowsPreview(
+        request.params.uploadId,
+        request.body?.mappings,
+      );
+
+    response.status(200).json({
+      success: true,
+      message:
+        'Mapping preview generated successfully',
       data: preview,
     });
   } catch (error) {
