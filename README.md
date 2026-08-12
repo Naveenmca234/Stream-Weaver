@@ -121,6 +121,9 @@ Backend environment:
 NODE_ENV=development
 PORT=5000
 CLIENT_ORIGIN=http://localhost:5173
+MAX_UPLOAD_BYTES=536870912
+UPLOAD_TTL_MINUTES=60
+UPLOAD_CLEANUP_INTERVAL_MINUTES=10
 
 Frontend environment:
 

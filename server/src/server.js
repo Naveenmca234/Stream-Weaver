@@ -96,3 +96,13 @@ process.on(
   'SIGTERM',
   () => shutdown('SIGTERM'),
 );
+
+process.on(
+  'unhandledRejection',
+  (reason) => {
+    console.error(
+      'Unhandled promise rejection:',
+      reason,
+    );
+  },
+);
