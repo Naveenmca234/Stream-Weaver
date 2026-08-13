@@ -159,6 +159,41 @@ export default function UploadPage() {
       [uploadConfig],
     );
 
+  const loadSampleFile =
+    useCallback(async () => {
+      try {
+        const response =
+          await fetch(
+            '/sample-data/employees-sample.csv',
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            'Sample dataset unavailable',
+          );
+        }
+
+        const blob =
+          await response.blob();
+
+        const sampleFile =
+          new File(
+            [blob],
+            'employees-sample.csv',
+            {
+              type: 'text/csv;charset=utf-8',
+            },
+          );
+
+        chooseFile(sampleFile);
+      } catch {
+        setStatus('error');
+        setErrorMessage(
+          'The sample CSV could not be loaded. Please upload your own file instead.',
+        );
+      }
+    }, [chooseFile]);
+
   function handleDropRejected(
     rejection,
   ) {
@@ -332,6 +367,9 @@ export default function UploadPage() {
             }
             onRejectedFile={
               handleDropRejected
+            }
+            onUseSampleFile={
+              loadSampleFile
             }
           />
         )}

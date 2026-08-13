@@ -15,7 +15,6 @@ export default function UploadDropzone({
   disabled,
   onAcceptedFile,
   onRejectedFile,
-  onUseSampleFile,
 }) {
   const {
     getRootProps,
@@ -73,6 +72,18 @@ export default function UploadDropzone({
     },
   });
 
+  function handleOpen(event) {
+    if (disabled) {
+      return;
+    }
+
+    if (event?.stopPropagation) {
+      event.stopPropagation();
+    }
+
+    open();
+  }
+
   return (
     <div
       {...getRootProps({
@@ -83,12 +94,24 @@ export default function UploadDropzone({
               : ''
           }`,
       })}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onClick={handleOpen}
+      onKeyDown={(event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          handleOpen(event);
+        }
+      }}
     >
       <input
         {...getInputProps()}
       />
 
-      <div className="upload-symbol">
+      <div className="upload-symbol" style={{ transition: 'transform 0.2s ease' }}>
         <Upload size={26} />
       </div>
 
@@ -102,25 +125,45 @@ export default function UploadDropzone({
         upload pipeline for preview.
       </p>
 
-      <div className="upload-cta-row">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={open}
-          disabled={disabled}
-        >
-          Browse files
-        </button>
+      <p className="upload-helper-text">
+        One CSV file at a time.
+      </p>
 
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onUseSampleFile}
-          disabled={disabled}
-        >
-          Use sample CSV
-        </button>
+      <div
+        style={{
+          marginTop: '0.25rem',
+          fontSize: '0.8rem',
+          color: '#6b7280',
+        }}
+      >
+        Drag and drop or browse
       </div>
+
+      <div
+        className="upload-status-pill"
+        style={{
+          display: 'inline-block',
+          marginTop: '0.5rem',
+          padding: '0.35rem 0.75rem',
+          borderRadius: '999px',
+          backgroundColor: '#f3f4f6',
+          color: '#374151',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          border: '1px solid #d1d5db',
+        }}
+      >
+        Fast preview ready
+      </div>
+
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={handleOpen}
+        disabled={disabled}
+      >
+        Choose CSV file
+      </button>
 
       <div className="upload-rules">
         <span>CSV only</span>

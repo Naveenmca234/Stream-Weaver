@@ -11,6 +11,7 @@ export class CsvRowObjectTransform extends Transform {
 
     this.sourceColumns = sourceColumns;
     this.headerSeen = false;
+    this.headerColumnCount = 0;
     this.rowNumber = 0;
   }
 
@@ -26,6 +27,7 @@ export class CsvRowObjectTransform extends Transform {
 
       if (!this.headerSeen) {
         this.headerSeen = true;
+        this.headerColumnCount = record.length;
 
         for (const column of this.sourceColumns) {
           if (
@@ -62,7 +64,7 @@ export class CsvRowObjectTransform extends Transform {
         rowNumber: this.rowNumber,
         source,
         hasColumnMismatch:
-          record.length !== this.sourceColumns.length,
+          record.length !== this.headerColumnCount,
       });
     } catch (error) {
       callback(error);
