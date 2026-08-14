@@ -1,5 +1,10 @@
- import app from './app.js';
+import app from './app.js';
 import env from './config/env.js';
+import fs from 'fs';
+
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+);
 
 import {
   initializeUploadLifecycle,
@@ -38,6 +43,10 @@ const server = app.listen(
 
     console.log(
       `Upload API  : http://localhost:${env.port}/api/files/upload`,
+    );
+
+    console.log(
+      `Version     : ${pkg.version}`,
     );
 
     console.log(
