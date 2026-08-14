@@ -1,0 +1,18 @@
+{
+  "name": "streamweaver",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Visual ETL. Massive Scale. Zero-Code Complexity.",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "benchmark": "npm run benchmark --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
