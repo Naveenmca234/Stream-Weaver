@@ -137,6 +137,7 @@ async function start(): Promise<void> {
     console.log(`  Upload Dir:  ${config.uploadDir}`);
     console.log(`  Version:     ${pkg.version}`);
     console.log(`  Batch Size:  ${config.batchSize} records`);
+    console.log(`  Started At:  ${new Date().toISOString()}`);
     console.log(`  Environment: ${config.nodeEnv}`);
     console.log('='.repeat(40));
     console.log('\nReady to process streams ⚡\n');
