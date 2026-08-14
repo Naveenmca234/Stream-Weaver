@@ -1,5 +1,7 @@
 import app from './app.js';
 import env from './config/env.js';
+// Set a short process title for easier identification in process lists
+process.title = 'streamweaver-backend';
 import fs from 'fs';
 
 const pkg = JSON.parse(
