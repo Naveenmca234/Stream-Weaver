@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import { WebSocketServer as WSServer } from 'ws';
 import mongoose from 'mongoose';
 import fs from 'fs';
+import pkg from '../package.json';
 
 import { config } from './config';
 import { errorHandler, notFound } from './middleware/error';
@@ -134,6 +135,7 @@ async function start(): Promise<void> {
     console.log(`  WebSocket:   ws://localhost:${config.port}`);
     console.log(`  MongoDB:     ${config.mongoUri}`);
     console.log(`  Upload Dir:  ${config.uploadDir}`);
+    console.log(`  Version:     ${pkg.version}`);
     console.log(`  Batch Size:  ${config.batchSize} records`);
     console.log(`  Environment: ${config.nodeEnv}`);
     console.log('='.repeat(40));
