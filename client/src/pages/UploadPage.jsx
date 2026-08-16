@@ -69,6 +69,102 @@ function validateSelectedFile(
   return null;
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter =
+      line[index + 1];
+
+    if (
+      character === '"' &&
+      inQuotes &&
+      nextCharacter === '"'
+    ) {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (
+      character === ',' &&
+      !inQuotes
+    ) {
+      values.push(
+        current.trim(),
+      );
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  values.push(
+    current.trim(),
+  );
+
+  return values;
+}
+
+async function createCsvProfile(file) {
+  const sampleSize =
+    Math.min(
+      file.size,
+      64 * 1024,
+    );
+
+  const text =
+    await file
+      .slice(0, sampleSize)
+      .text();
+
+  const lines =
+    text
+      .split(/\r?\n/)
+      .filter((line) => line.trim());
+
+  const header =
+    parseCsvLine(
+      lines[0] || '',
+    ).filter(Boolean);
+
+  const sampledRows =
+    Math.max(
+      lines.length - 1,
+      0,
+    );
+
+  const estimatedRows =
+    sampleSize > 0 && sampledRows > 0
+      ? Math.max(
+          sampledRows,
+          Math.round(
+            (sampledRows *
+              file.size) /
+              sampleSize,
+          ),
+        )
+      : 0;
+
+  return {
+    columnCount:
+      header.length,
+    headers:
+      header.slice(0, 8),
+    estimatedRows,
+    sampledRows,
+  };
+}
+
 export default function UploadPage() {
   const navigate =
     useNavigate();
@@ -97,6 +193,16 @@ export default function UploadPage() {
     uploadProgress,
     setUploadProgress,
   ] = useState(0);
+
+  const [
+    csvProfile,
+    setCsvProfile,
+  ] = useState(null);
+
+  const [
+    profileStatus,
+    setProfileStatus,
+  ] = useState('idle');
 
   useEffect(() => {
     let active = true;
@@ -129,7 +235,7 @@ export default function UploadPage() {
 
   const chooseFile =
     useCallback(
-      (file) => {
+      async (file) => {
         const validationError =
           validateSelectedFile(
             file,
@@ -155,6 +261,18 @@ export default function UploadPage() {
         setStatus('idle');
         setErrorMessage('');
         setUploadProgress(0);
+        setCsvProfile(null);
+        setProfileStatus('loading');
+
+        try {
+          const profile =
+            await createCsvProfile(file);
+
+          setCsvProfile(profile);
+          setProfileStatus('ready');
+        } catch {
+          setProfileStatus('error');
+        }
       },
       [uploadConfig],
     );
@@ -196,6 +314,8 @@ export default function UploadPage() {
     setStatus('idle');
     setErrorMessage('');
     setUploadProgress(0);
+    setCsvProfile(null);
+    setProfileStatus('idle');
   }
 
   async function startUpload() {
@@ -350,6 +470,90 @@ export default function UploadPage() {
                 removeFile
               }
             />
+
+            <div className="csv-profile">
+              <div className="csv-profile-header">
+                <div>
+                  <span>
+                    Quick profile
+                  </span>
+
+                  <strong>
+                    {profileStatus ===
+                    'loading'
+                      ? 'Reading CSV header...'
+                      : 'Ready before upload'}
+                  </strong>
+                </div>
+              </div>
+
+              {profileStatus ===
+                'ready' &&
+                csvProfile && (
+                  <>
+                    <dl className="csv-profile-metrics">
+                      <div>
+                        <dt>
+                          Columns
+                        </dt>
+
+                        <dd>
+                          {
+                            csvProfile.columnCount
+                          }
+                        </dd>
+                      </div>
+
+                      <div>
+                        <dt>
+                          Estimated rows
+                        </dt>
+
+                        <dd>
+                          {csvProfile.estimatedRows.toLocaleString()}
+                        </dd>
+                      </div>
+
+                      <div>
+                        <dt>
+                          Sampled rows
+                        </dt>
+
+                        <dd>
+                          {csvProfile.sampledRows.toLocaleString()}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {csvProfile.headers
+                      .length > 0 && (
+                      <div className="csv-header-preview">
+                        {csvProfile.headers.map(
+                          (header) => (
+                            <span
+                              key={
+                                header
+                              }
+                            >
+                              {header}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {profileStatus ===
+                'error' && (
+                <p className="csv-profile-message">
+                  StreamWeaver could not
+                  read a local header
+                  sample, but the upload
+                  can still continue.
+                </p>
+              )}
+            </div>
 
             {status ===
               'uploading' && (
