@@ -1,0 +1,6 @@
+employee_id,first_name,last_name,department,location,start_date,salary
+1001,Avery,Stone,Engineering,Austin,2021-03-15,112000
+1002,Maya,Patel,Operations,Seattle,2020-11-02,86000
+1003,Jonah,Reed,Finance,Chicago,2022-06-20,94000
+1004,Lina,Chen,Marketing,New York,2019-08-12,99000
+1005,Theo,Garcia,Support,Denver,2023-01-09,71000

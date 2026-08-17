@@ -1,4 +1,5 @@
 import {
+  Download,
   Upload,
 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ import {
 
 export default function UploadDropzone({
   maxFileSize,
+  sampleFileUrl,
   disabled,
   onAcceptedFile,
   onRejectedFile,
@@ -109,6 +111,17 @@ export default function UploadDropzone({
       >
         Browse files
       </button>
+
+      {sampleFileUrl && (
+        <a
+          className="sample-download-link"
+          href={sampleFileUrl}
+          download
+        >
+          <Download size={15} />
+          Download sample CSV
+        </a>
+      )}
 
       <div className="upload-rules">
         <span>CSV only</span>

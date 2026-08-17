@@ -537,6 +537,25 @@ a:focus-visible {
   background: #182230;
 }
 
+.sample-download-link {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  margin-top: 12px;
+
+  color: #9cafef;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sample-download-link:hover {
+  color: #c8d2ff;
+}
+
 .primary-button:disabled,
 .secondary-button:disabled,
 .icon-button:disabled {

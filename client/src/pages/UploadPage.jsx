@@ -469,6 +469,7 @@ export default function UploadPage() {
               uploadConfig
                 ?.maxFileSizeBytes
             }
+            sampleFileUrl="/sample-data/employees-sample.csv"
             disabled={
               status ===
               'uploading'
