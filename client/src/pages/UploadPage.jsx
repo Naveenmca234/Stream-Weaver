@@ -27,6 +27,9 @@ import {
   formatBytes,
 } from '../utils/formatBytes';
 
+const SAMPLE_FILE_URL =
+  '/sample-data/employees-sample.csv';
+
 function getApiErrorMessage(error) {
   if (!error.response) {
     return 'StreamWeaver could not reach the backend. Check that the API server is running.';
@@ -302,6 +305,40 @@ export default function UploadPage() {
       [uploadConfig],
     );
 
+  const useSampleFile =
+    useCallback(async () => {
+      try {
+        const response =
+          await fetch(SAMPLE_FILE_URL);
+
+        if (!response.ok) {
+          throw new Error(
+            'Sample file unavailable.',
+          );
+        }
+
+        const blob =
+          await response.blob();
+
+        const file =
+          new File(
+            [blob],
+            'employees-sample.csv',
+            {
+              type:
+                'text/csv',
+            },
+          );
+
+        await chooseFile(file);
+      } catch {
+        setStatus('error');
+        setErrorMessage(
+          'StreamWeaver could not load the sample CSV.',
+        );
+      }
+    }, [chooseFile]);
+
   function handleDropRejected(
     rejection,
   ) {
@@ -469,7 +506,9 @@ export default function UploadPage() {
               uploadConfig
                 ?.maxFileSizeBytes
             }
-            sampleFileUrl="/sample-data/employees-sample.csv"
+            sampleFileUrl={
+              SAMPLE_FILE_URL
+            }
             disabled={
               status ===
               'uploading'
@@ -479,6 +518,9 @@ export default function UploadPage() {
             }
             onRejectedFile={
               handleDropRejected
+            }
+            onUseSampleFile={
+              useSampleFile
             }
           />
         )}

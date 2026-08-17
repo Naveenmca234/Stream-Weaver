@@ -537,6 +537,13 @@ a:focus-visible {
   background: #182230;
 }
 
+.upload-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
+}
+
 .sample-download-link {
   display: inline-flex;
   min-height: 34px;

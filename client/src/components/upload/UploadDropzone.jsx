@@ -1,5 +1,6 @@
 import {
   Download,
+  FilePlus,
   Upload,
 } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export default function UploadDropzone({
   disabled,
   onAcceptedFile,
   onRejectedFile,
+  onUseSampleFile,
 }) {
   const {
     getRootProps,
@@ -103,14 +105,28 @@ export default function UploadDropzone({
         upload pipeline for preview.
       </p>
 
-      <button
-        type="button"
-        className="secondary-button"
-        onClick={open}
-        disabled={disabled}
-      >
-        Browse files
-      </button>
+      <div className="upload-choice-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={open}
+          disabled={disabled}
+        >
+          Browse files
+        </button>
+
+        {sampleFileUrl && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onUseSampleFile}
+            disabled={disabled}
+          >
+            <FilePlus size={15} />
+            Use sample CSV
+          </button>
+        )}
+      </div>
 
       {sampleFileUrl && (
         <a
