@@ -19,16 +19,23 @@ export async function uploadCsv(file, onProgress) {
           return;
         }
 
-        const total = progressEvent.total || file.size;
+        const total =
+          progressEvent.total ||
+          file.size ||
+          0;
+
+        const loaded =
+          progressEvent.loaded || 0;
+
         const percentage = total > 0
           ? Math.min(
               100,
-              Math.round((progressEvent.loaded / total) * 100),
+              Math.round((loaded / total) * 100),
             )
           : 0;
 
         onProgress({
-          loaded: progressEvent.loaded,
+          loaded,
           total,
           percentage,
         });
