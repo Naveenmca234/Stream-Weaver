@@ -68,6 +68,34 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Health check endpoint (no auth required for Docker healthchecks)
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    // Return health status
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: config.nodeEnv,
+      version: pkg.version,
+      database: mongoStatus,
+      services: {
+        mongodb: mongoStatus === 'connected' ? 'healthy' : 'unhealthy',
+        redis: 'checking', // Could add Redis ping if needed
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Service unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/datasets', datasetRoutes);
