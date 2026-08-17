@@ -760,6 +760,50 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+.csv-row-preview {
+  overflow: auto;
+
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  background: #0d1520;
+}
+
+.csv-row-preview table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+.csv-row-preview th,
+.csv-row-preview td {
+  max-width: 190px;
+  overflow: hidden;
+
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+
+  font-size: 10px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.csv-row-preview th {
+  color: #748196;
+  background: #101a27;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.csv-row-preview td {
+  color: #b5bfcc;
+}
+
+.csv-row-preview tr:last-child td {
+  border-bottom: 0;
+}
+
 .csv-profile-message {
   margin: 0;
 

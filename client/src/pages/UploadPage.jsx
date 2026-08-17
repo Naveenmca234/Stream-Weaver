@@ -147,6 +147,13 @@ async function createCsvProfile(file) {
       0,
     );
 
+  const previewRows =
+    lines
+      .slice(1, 4)
+      .map((line) =>
+        parseCsvLine(line),
+      );
+
   const estimatedRows =
     sampleSize > 0 && sampledRows > 0
       ? Math.max(
@@ -164,6 +171,12 @@ async function createCsvProfile(file) {
       header.length,
     headers:
       header.slice(0, 8),
+    previewColumns:
+      header.slice(0, 5),
+    previewRows:
+      previewRows.map((row) =>
+        row.slice(0, 5),
+      ),
     estimatedRows,
     sampledRows,
   };
@@ -611,6 +624,65 @@ export default function UploadPage() {
                             </span>
                           ),
                         )}
+                      </div>
+                    )}
+
+                    {csvProfile.previewRows
+                      .length > 0 && (
+                      <div className="csv-row-preview">
+                        <table>
+                          <thead>
+                            <tr>
+                              {csvProfile.previewColumns.map(
+                                (
+                                  column,
+                                  index,
+                                ) => (
+                                  <th
+                                    key={
+                                      `${column}-${index}`
+                                    }
+                                  >
+                                    {column ||
+                                      `Column ${index + 1}`}
+                                  </th>
+                                ),
+                              )}
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {csvProfile.previewRows.map(
+                              (
+                                row,
+                                rowIndex,
+                              ) => (
+                                <tr
+                                  key={
+                                    `preview-row-${rowIndex}`
+                                  }
+                                >
+                                  {csvProfile.previewColumns.map(
+                                    (
+                                      column,
+                                      columnIndex,
+                                    ) => (
+                                      <td
+                                        key={
+                                          `${column}-${columnIndex}`
+                                        }
+                                      >
+                                        {row[
+                                          columnIndex
+                                        ] || '-'}
+                                      </td>
+                                    ),
+                                  )}
+                                </tr>
+                              ),
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </>
