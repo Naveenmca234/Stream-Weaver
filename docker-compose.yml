@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-alpine
+    container_name: streamweaver-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: streamweaver
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamweaver
+
+  # Redis Cache & Message Queue
+  redis:
+    image: redis:7-alpine
+    container_name: streamweaver-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamweaver
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-runtime
+    container_name: streamweaver-backend
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 4000
+      WS_PORT: 4001
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/streamweaver?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      CLIENT_URL: http://localhost:5173
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-key}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: 10737418240
+      BATCH_SIZE: 5000
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - streamweaver
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-runtime
+    container_name: streamweaver-frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://backend:4000/api
+      VITE_WS_URL: ws://backend:4001
+    ports:
+      - "5173:80"
+    networks:
+      - streamweaver
+    restart: unless-stopped
+
+  # Adminer for MongoDB management (optional)
+  adminer:
+    image: adminer:latest
+    container_name: streamweaver-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - streamweaver
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  redis_data:
+  backend_uploads:
+  backend_logs:
+
+networks:
+  streamweaver:
+    driver: bridge
