@@ -1,6 +1,7 @@
  import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 
@@ -204,6 +205,9 @@ export default function UploadPage() {
     setProfileStatus,
   ] = useState('idle');
 
+  const profileRequestId =
+    useRef(0);
+
   useEffect(() => {
     let active = true;
 
@@ -236,6 +240,13 @@ export default function UploadPage() {
   const chooseFile =
     useCallback(
       async (file) => {
+        const requestId =
+          profileRequestId.current +
+          1;
+
+        profileRequestId.current =
+          requestId;
+
         const validationError =
           validateSelectedFile(
             file,
@@ -268,9 +279,23 @@ export default function UploadPage() {
           const profile =
             await createCsvProfile(file);
 
+          if (
+            profileRequestId.current !==
+            requestId
+          ) {
+            return;
+          }
+
           setCsvProfile(profile);
           setProfileStatus('ready');
         } catch {
+          if (
+            profileRequestId.current !==
+            requestId
+          ) {
+            return;
+          }
+
           setProfileStatus('error');
         }
       },
@@ -316,6 +341,7 @@ export default function UploadPage() {
     setUploadProgress(0);
     setCsvProfile(null);
     setProfileStatus('idle');
+    profileRequestId.current += 1;
   }
 
   async function startUpload() {
@@ -529,10 +555,13 @@ export default function UploadPage() {
                       .length > 0 && (
                       <div className="csv-header-preview">
                         {csvProfile.headers.map(
-                          (header) => (
+                          (
+                            header,
+                            index,
+                          ) => (
                             <span
                               key={
-                                header
+                                `${header}-${index}`
                               }
                             >
                               {header}

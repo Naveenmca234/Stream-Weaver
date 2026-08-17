@@ -1,7 +1,9 @@
 export function formatBytes(bytes) {
   if (
     bytes === null ||
-    bytes === undefined
+    bytes === undefined ||
+    !Number.isFinite(bytes) ||
+    bytes < 0
   ) {
     return 'Unknown';
   }

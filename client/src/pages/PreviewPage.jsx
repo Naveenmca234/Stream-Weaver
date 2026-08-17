@@ -182,7 +182,7 @@ export default function PreviewPage() {
         <div className="preview-panel-header">
           <div>
             <h2>Dataset rows</h2>
-            <p>UTF-8 preview · Only visible rows are rendered while scrolling.</p>
+            <p>UTF-8 preview. Only visible rows are rendered while scrolling.</p>
           </div>
 
           {preview.hasMoreRows && (

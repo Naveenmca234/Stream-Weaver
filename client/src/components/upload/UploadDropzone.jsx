@@ -113,7 +113,7 @@ export default function UploadDropzone({
       <div className="upload-rules">
         <span>CSV only</span>
 
-        <span>•</span>
+        <span aria-hidden="true">-</span>
 
         <span>
           {maxFileSize
