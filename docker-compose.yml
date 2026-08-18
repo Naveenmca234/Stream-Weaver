@@ -15,7 +15,7 @@ services:
   # - Persistent volume for data retention
   # - Health checks ensure container is ready before dependents start
   mongodb:
-    image: mongo:7-alpine
+    image: mongo:7.0
     container_name: streamweaver-mongodb
     restart: unless-stopped
     environment:
