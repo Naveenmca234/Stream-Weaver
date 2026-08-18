@@ -44,7 +44,7 @@ services:
           memory: 512M
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
