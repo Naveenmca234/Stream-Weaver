@@ -34,8 +34,7 @@ export default function UploadDropzone({
 
     ...(maxFileSize
       ? {
-          maxSize:
-            maxFileSize,
+          maxSize: maxFileSize,
         }
       : {}),
 
@@ -48,48 +47,37 @@ export default function UploadDropzone({
         '.csv',
       ],
 
-      'application/vnd.ms-excel':
-        [
-          '.csv',
-        ],
+      'application/vnd.ms-excel': [
+        '.csv',
+      ],
 
-      'application/octet-stream':
-        [
-          '.csv',
-        ],
+      'application/octet-stream': [
+        '.csv',
+      ],
     },
 
     onDropAccepted(files) {
       if (files[0]) {
-        onAcceptedFile(
-          files[0],
-        );
+        onAcceptedFile(files[0]);
       }
     },
 
-    onDropRejected(
-      rejections,
-    ) {
-      onRejectedFile(
-        rejections[0],
-      );
+    onDropRejected(rejections) {
+      onRejectedFile(rejections[0]);
     },
   });
 
   return (
     <div
       {...getRootProps({
-        className:
-          `upload-dropzone ${
-            isDragActive
-              ? 'dragging'
-              : ''
-          }`,
+        className: `upload-dropzone ${
+          isDragActive
+            ? 'dragging'
+            : ''
+        }`,
       })}
     >
-      <input
-        {...getInputProps()}
-      />
+      <input {...getInputProps()} />
 
       <div className="upload-symbol">
         <Upload size={26} />
@@ -101,7 +89,7 @@ export default function UploadDropzone({
 
       <p>
         The browser sends the file
-        directly to StreamWeaver's
+        directly to StreamWeaver&apos;s
         upload pipeline for preview.
       </p>
 
@@ -142,7 +130,9 @@ export default function UploadDropzone({
       <div className="upload-rules">
         <span>CSV only</span>
 
-        <span aria-hidden="true">-</span>
+        <span aria-hidden="true">
+          -
+        </span>
 
         <span>
           {maxFileSize

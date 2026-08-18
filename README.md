@@ -1,27 +1,147 @@
-﻿# StreamWeaver
+# StreamWeaver
 
 ## High-Throughput No-Code ETL Pipeline
 
-StreamWeaver is an advanced MERN data-engineering application being developed for the Infotact Solutions internship program.
+StreamWeaver is a MERN-oriented data-engineering application developed for the Infotact Solutions internship program. Its core goal is to process very large CSV datasets using streaming and bounded-memory techniques instead of loading complete files into browser or Node.js memory.
 
-The system is designed to process very large CSV and JSON datasets without loading complete files into browser or Node.js memory.
+## Current Project Status
 
-## Problem Statement
+### Week 1 — Streaming Upload and Virtualized Preview ✅
 
-Traditional upload and ETL applications may exhaust browser memory or the Node.js V8 heap when processing massive datasets.
+Completed:
 
-StreamWeaver will use streaming, bounded buffers, database bulk operations, and frontend virtualization to provide a memory-safe no-code ETL workflow.
+- React + Vite application shell
+- Express backend and health API
+- Structured API error responses
+- Busboy multipart CSV streaming
+- Direct stream-to-disk temporary storage
+- UUID-based server filenames
+- Configurable upload limits
+- Empty-file, invalid-extension and multiple-file rejection
+- Interrupted/incomplete upload cleanup
+- Temporary upload lifecycle
+- `fs.createReadStream()` CSV preview pipeline
+- Streaming CSV parsing with `csv-parse`
+- Header detection
+- Preview bounded to a maximum of 1,000 rows
+- `hasMoreRows` detection
+- Malformed CSV handling
+- Column-count mismatch warnings
+- Header-only CSV handling
+- UTF-8/BOM support
+- React virtualized preview grid
+- Responsive professional import/preview UI
+- Automated backend verification: **15/15 tests passed**
 
-## Target Product Flow
+### Week 2 — Mapping and ETL Transform Streams ✅
 
+Completed:
+
+- Visual source-column → destination-field mapping workflow
+- Mapping configuration validation
+- Duplicate destination-field rejection
+- Missing source-column validation
+- Invalid destination-field validation
+- CSV row-object Transform stream
+- Mapping Transform stream
+- Bounded transformed-row preview
+- Real backend mapping preview API
+- Preview → Mapping workflow integration
+- Automated Week 2 verification: **7/7 tests passed**
+
+### Mid-Project Review — 2GB Performance Audit ✅
+
+A real **2GB CSV** was generated and processed locally through the streaming upload pipeline.
+
+Measured result:
+
+| Metric | Result |
+| --- | ---: |
+| Dataset size | 2048 MB |
+| Generated rows | 30,246,247 |
+| Baseline backend working set | 63.26 MB |
+| Peak backend working set | **94.17 MB** |
+| Working-set increase | 30.91 MB |
+| Peak private memory | 98.37 MB |
+| Upload duration | 28.88 s |
+| Throughput | 70.91 MB/s |
+| Preview rows returned | 1,000 |
+| Additional rows detected | Yes |
+| Preview generation time | 0.194 s |
+| Required RAM target | < 150 MB |
+| Result | **PASS** |
+
+Frontend virtualization was also verified with **1,000 preview rows available while only 15 `.preview-data-row` elements were mounted in the DOM** during the test.
+
+The raw benchmark result is stored in:
+
+```text
+docs/benchmarks/memory-audit.csv
+```
+
+## Current Architecture
+
+```text
+Browser CSV
+    ↓
+multipart/form-data
+    ↓
+Busboy
+    ↓
+Node.js Readable Stream
+    ↓
+fs.WriteStream
+    ↓
+Temporary UUID.csv
+    ↓
+fs.createReadStream()
+    ↓
+csv-parse streaming parser
+    ↓
+Row Object Transform
+    ↓
+Mapping Transform
+    ↓
+Bounded preview / mapped preview
+```
+
+The project deliberately avoids reading the complete dataset into one array or one large Buffer.
+
+## Product Flow
+
+Current working flow:
+
+```text
 Upload Dataset
-→ Preview Dataset
-→ Map Columns
-→ Configure Transformations
-→ Configure Validation
-→ Start ETL Job
-→ Monitor Processing
-→ Review Results and Failed Rows
+    ↓
+Preview Dataset
+    ↓
+Map Columns
+    ↓
+Test Mapping Pipeline
+```
+
+Planned full flow:
+
+```text
+Upload Dataset
+    ↓
+Preview Dataset
+    ↓
+Map Columns
+    ↓
+Configure Transformations
+    ↓
+Configure Validation
+    ↓
+Start ETL Job
+    ↓
+Monitor Live Progress
+    ↓
+Bulk Ingest to MongoDB
+    ↓
+Review Results and Failed Rows
+```
 
 ## Technology Stack
 
@@ -32,8 +152,8 @@ Upload Dataset
 - Axios
 - React Router
 - react-dropzone
-- react-window or react-virtualized
-- Socket.io Client
+- react-window
+- Lucide React
 
 ### Backend
 
@@ -41,101 +161,179 @@ Upload Dataset
 - Express
 - Native Node.js Streams
 - Busboy
-- Streaming CSV parser
-- MongoDB
-- MongoDB bulkWrite
-- Socket.io
-- isolated-vm in a later phase
-
-## Completed
-
-- React/Vite frontend
-- Express backend
-- Environment configuration
-- CORS configuration
-- Centralized API error responses
-- GET /api/health
-- Structured 404 handling
-- React-to-Express connectivity
-- Backend connected state
-- Backend unavailable state
-- Retry connection behaviour
-
-## Not Yet Implemented
-
-- Streaming CSV upload
-- Temporary-file lifecycle
-- Streaming CSV preview
-- Dataset virtualization
-- MongoDB integration
-- Mapping
+- csv-parse
 - Transform streams
-- Validation
-- WebSocket progress
-- Bulk ingestion
-- isolated-vm
+
+### Planned Later Phases
+
+- Socket.IO / WebSocket live processing progress
+- isolated-vm sandboxed JavaScript transformations
+- MongoDB
+- MongoDB `bulkWrite()` batching
+- Validation/rejection pipeline
+- Job history and failed-row review
 - Authentication
+- JSON streaming support
 
-## Development Location
+## Repository Structure
 
-A:\StreamWeaver
+```text
+Stream-Weaver/
+├── client/
+├── server/
+├── docs/
+│   └── benchmarks/
+├── sample-data/
+├── scripts/
+├── .gitignore
+└── README.md
+```
 
 ## Prerequisites
 
-- Node.js 22.12 or newer
+- Node.js 22.12+
 - Node.js 24 LTS recommended
 - npm
 - Git
-- Visual Studio Code
+- Visual Studio Code or another editor
 
-MongoDB will be configured when required by the project phase.
+MongoDB is intentionally not required yet because persistent ETL ingestion belongs to a later project phase.
 
-## Running the Backend
+## Local Setup
 
-cd A:\StreamWeaver\server
+Clone the repository and install dependencies:
+
+```powershell
+git clone https://github.com/Naveenmca234/Stream-Weaver.git
+cd Stream-Weaver
+
+cd server
 npm install
+
+cd ..\client
+npm install
+```
+
+Create local environment files:
+
+```powershell
+cd ..
+Copy-Item server\.env.example server\.env
+Copy-Item client\.env.example client\.env
+```
+
+Never commit real `.env` files.
+
+## Run the Backend
+
+```powershell
+cd server
 npm run dev
+```
 
 Backend:
 
+```text
 http://localhost:5000
+```
 
 Health API:
 
+```text
 http://localhost:5000/api/health
+```
 
-## Running the Frontend
+## Run the Frontend
 
-cd A:\StreamWeaver\client
-npm install
+```powershell
+cd client
 npm run dev
+```
 
 Frontend:
 
+```text
 http://localhost:5173
+```
 
-## Environment Configuration
+## Automated Verification
 
-Backend environment:
+### Week 1
 
-NODE_ENV=development
-PORT=5000
-CLIENT_ORIGIN=http://localhost:5173
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\week1-tests.ps1
+```
 
-Frontend environment:
+Expected status:
 
-VITE_API_BASE_URL=http://localhost:5000/api
+```text
+Passed: 15
+Failed: 0
+```
 
-Never commit real .env files.
+### Week 2
 
-## Performance Policy
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\week2-tests.ps1
+```
 
-No large-file benchmark will be claimed until the corresponding test has actually been performed.
+Expected status:
 
-The project will gradually progress from small CSV tests to approximately 2GB.
+```text
+Passed: 7
+Failed: 0
+```
 
-## Current Limitation
+### Mid-Project Memory Audit
 
-The current frontend verifies system connectivity.
+The audit script supports progressive tests:
 
-It will be replaced by the real StreamWeaver application shell and streaming dataset-import workflow in the next implementation block.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\midproject-memory-audit.ps1 -TargetMB 100
+powershell -ExecutionPolicy Bypass -File .\scripts\midproject-memory-audit.ps1 -TargetMB 500
+powershell -ExecutionPolicy Bypass -File .\scripts\midproject-memory-audit.ps1 -TargetMB 1024
+powershell -ExecutionPolicy Bypass -File .\scripts\midproject-memory-audit.ps1 -TargetMB 2048
+```
+
+Large benchmark source files and temporary server uploads are excluded from Git.
+
+## Memory-Safety Rules
+
+- Do not use `fs.readFile()` for large datasets.
+- Do not accumulate complete datasets in JavaScript arrays.
+- Do not use memory-based multipart storage for very large uploads.
+- Respect Node.js stream backpressure.
+- Keep preview buffers bounded.
+- Keep future MongoDB write batches bounded.
+- Release completed batches as soon as possible.
+- Measure real memory usage before making performance claims.
+
+## Current Limitations
+
+The current implementation intentionally has the following limitations because the corresponding company phases have not started yet:
+
+- Upload metadata is stored in memory and is lost when the backend restarts.
+- Uploaded CSV files are temporary local files.
+- MongoDB persistence is not implemented yet.
+- Sandboxed JavaScript transformations are not implemented yet.
+- WebSocket live job progress is not implemented yet.
+- Validation rules and failed-row persistence are not implemented yet.
+- Authentication is not implemented yet.
+- JSON streaming support is not implemented yet.
+
+## Next Phase
+
+The next development phase is **Week 3**:
+
+- Sandboxed inline JavaScript transformations using `isolated-vm`
+- Real-time ETL progress over WebSocket / Socket.IO
+- Progress bar
+- Rows processed
+- Rows processed per second
+- Processing state and completion/failure events
+
+MongoDB bulk ingestion will be added only in the later phase where it is officially required.
+
+---
+
+**Current milestone:** Week 1 ✅ · Week 2 ✅ · Mid-Project Review ✅ · Week 3 next

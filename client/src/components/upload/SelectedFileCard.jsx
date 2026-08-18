@@ -37,6 +37,10 @@ export default function SelectedFileCard({
               'Detected by extension'}
           </span>
         </div>
+
+        <span className="file-status-pill">
+          Ready to upload
+        </span>
       </div>
 
       <button

@@ -130,6 +130,16 @@ export default function UploadDropzone({
       </p>
 
       <div
+        style={{
+          marginTop: '0.25rem',
+          fontSize: '0.8rem',
+          color: '#6b7280',
+        }}
+      >
+        Drag and drop or browse
+      </div>
+
+      <div
         className="upload-status-pill"
         style={{
           display: 'inline-block',
