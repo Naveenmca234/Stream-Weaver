@@ -74,7 +74,7 @@ services:
       redis-server 
       --appendonly yes 
       --requirepass ${REDIS_PASSWORD:-redis123}
-      --maxmemory 512mb
+      --maxmemory 256mb
       --maxmemory-policy allkeys-lru
     volumes:
       # Persistent storage for Redis data
