@@ -33,7 +33,7 @@ function renderCellValue(
   if (value === '') {
     return (
       <span className="empty-value">
-        — Empty
+        Empty
       </span>
     );
   }

@@ -1,4 +1,6 @@
 import {
+  Download,
+  FilePlus,
   Upload,
 } from 'lucide-react';
 
@@ -12,6 +14,7 @@ import {
 
 export default function UploadDropzone({
   maxFileSize,
+  sampleFileUrl,
   disabled,
   onAcceptedFile,
   onRejectedFile,
@@ -31,8 +34,7 @@ export default function UploadDropzone({
 
     ...(maxFileSize
       ? {
-          maxSize:
-            maxFileSize,
+          maxSize: maxFileSize,
         }
       : {}),
 
@@ -45,48 +47,37 @@ export default function UploadDropzone({
         '.csv',
       ],
 
-      'application/vnd.ms-excel':
-        [
-          '.csv',
-        ],
+      'application/vnd.ms-excel': [
+        '.csv',
+      ],
 
-      'application/octet-stream':
-        [
-          '.csv',
-        ],
+      'application/octet-stream': [
+        '.csv',
+      ],
     },
 
     onDropAccepted(files) {
       if (files[0]) {
-        onAcceptedFile(
-          files[0],
-        );
+        onAcceptedFile(files[0]);
       }
     },
 
-    onDropRejected(
-      rejections,
-    ) {
-      onRejectedFile(
-        rejections[0],
-      );
+    onDropRejected(rejections) {
+      onRejectedFile(rejections[0]);
     },
   });
 
   return (
     <div
       {...getRootProps({
-        className:
-          `upload-dropzone ${
-            isDragActive
-              ? 'dragging'
-              : ''
-          }`,
+        className: `upload-dropzone ${
+          isDragActive
+            ? 'dragging'
+            : ''
+        }`,
       })}
     >
-      <input
-        {...getInputProps()}
-      />
+      <input {...getInputProps()} />
 
       <div className="upload-symbol">
         <Upload size={26} />
@@ -98,11 +89,11 @@ export default function UploadDropzone({
 
       <p>
         The browser sends the file
-        directly to StreamWeaver's
+        directly to StreamWeaver&apos;s
         upload pipeline for preview.
       </p>
 
-      <div className="upload-cta-row">
+      <div className="upload-choice-actions">
         <button
           type="button"
           className="secondary-button"
@@ -112,20 +103,36 @@ export default function UploadDropzone({
           Browse files
         </button>
 
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onUseSampleFile}
-          disabled={disabled}
-        >
-          Use sample CSV
-        </button>
+        {sampleFileUrl && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onUseSampleFile}
+            disabled={disabled}
+          >
+            <FilePlus size={15} />
+            Use sample CSV
+          </button>
+        )}
       </div>
+
+      {sampleFileUrl && (
+        <a
+          className="sample-download-link"
+          href={sampleFileUrl}
+          download
+        >
+          <Download size={15} />
+          Download sample CSV
+        </a>
+      )}
 
       <div className="upload-rules">
         <span>CSV only</span>
 
-        <span>•</span>
+        <span aria-hidden="true">
+          -
+        </span>
 
         <span>
           {maxFileSize

@@ -27,7 +27,8 @@ export class CsvRowObjectTransform extends Transform {
 
       if (!this.headerSeen) {
         this.headerSeen = true;
-        this.headerColumnCount = record.length;
+        this.headerColumnCount =
+          record.length;
 
         for (const column of this.sourceColumns) {
           if (

@@ -1,6 +1,7 @@
  import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 
@@ -25,6 +26,9 @@ import {
 import {
   formatBytes,
 } from '../utils/formatBytes';
+
+const SAMPLE_FILE_URL =
+  '/sample-data/employees-sample.csv';
 
 function getApiErrorMessage(error) {
   if (!error.response) {
@@ -69,6 +73,115 @@ function validateSelectedFile(
   return null;
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter =
+      line[index + 1];
+
+    if (
+      character === '"' &&
+      inQuotes &&
+      nextCharacter === '"'
+    ) {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (
+      character === ',' &&
+      !inQuotes
+    ) {
+      values.push(
+        current.trim(),
+      );
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  values.push(
+    current.trim(),
+  );
+
+  return values;
+}
+
+async function createCsvProfile(file) {
+  const sampleSize =
+    Math.min(
+      file.size,
+      64 * 1024,
+    );
+
+  const text =
+    await file
+      .slice(0, sampleSize)
+      .text();
+
+  const lines =
+    text
+      .split(/\r?\n/)
+      .filter((line) => line.trim());
+
+  const header =
+    parseCsvLine(
+      lines[0] || '',
+    ).filter(Boolean);
+
+  const sampledRows =
+    Math.max(
+      lines.length - 1,
+      0,
+    );
+
+  const previewRows =
+    lines
+      .slice(1, 4)
+      .map((line) =>
+        parseCsvLine(line),
+      );
+
+  const estimatedRows =
+    sampleSize > 0 && sampledRows > 0
+      ? Math.max(
+          sampledRows,
+          Math.round(
+            (sampledRows *
+              file.size) /
+              sampleSize,
+          ),
+        )
+      : 0;
+
+  return {
+    columnCount:
+      header.length,
+    headers:
+      header.slice(0, 8),
+    previewColumns:
+      header.slice(0, 5),
+    previewRows:
+      previewRows.map((row) =>
+        row.slice(0, 5),
+      ),
+    estimatedRows,
+    sampledRows,
+  };
+}
+
 export default function UploadPage() {
   const navigate =
     useNavigate();
@@ -97,6 +210,19 @@ export default function UploadPage() {
     uploadProgress,
     setUploadProgress,
   ] = useState(0);
+
+  const [
+    csvProfile,
+    setCsvProfile,
+  ] = useState(null);
+
+  const [
+    profileStatus,
+    setProfileStatus,
+  ] = useState('idle');
+
+  const profileRequestId =
+    useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -129,7 +255,14 @@ export default function UploadPage() {
 
   const chooseFile =
     useCallback(
-      (file) => {
+      async (file) => {
+        const requestId =
+          profileRequestId.current +
+          1;
+
+        profileRequestId.current =
+          requestId;
+
         const validationError =
           validateSelectedFile(
             file,
@@ -155,41 +288,66 @@ export default function UploadPage() {
         setStatus('idle');
         setErrorMessage('');
         setUploadProgress(0);
+        setCsvProfile(null);
+        setProfileStatus('loading');
+
+        try {
+          const profile =
+            await createCsvProfile(file);
+
+          if (
+            profileRequestId.current !==
+            requestId
+          ) {
+            return;
+          }
+
+          setCsvProfile(profile);
+          setProfileStatus('ready');
+        } catch {
+          if (
+            profileRequestId.current !==
+            requestId
+          ) {
+            return;
+          }
+
+          setProfileStatus('error');
+        }
       },
       [uploadConfig],
     );
 
-  const loadSampleFile =
+  const useSampleFile =
     useCallback(async () => {
       try {
         const response =
-          await fetch(
-            '/sample-data/employees-sample.csv',
-          );
+          await fetch(SAMPLE_FILE_URL);
 
         if (!response.ok) {
           throw new Error(
-            'Sample dataset unavailable',
+            'Sample file unavailable.',
           );
         }
 
         const blob =
           await response.blob();
 
-        const sampleFile =
+        const file =
           new File(
             [blob],
             'employees-sample.csv',
             {
-              type: 'text/csv;charset=utf-8',
+              type:
+                'text/csv',
             },
           );
 
-        chooseFile(sampleFile);
+        await chooseFile(file);
       } catch {
         setStatus('error');
         setErrorMessage(
-          'The sample CSV could not be loaded. Please upload your own file instead.',
+          'StreamWeaver could not load the sample CSV.',
         );
       }
     }, [chooseFile]);
@@ -231,6 +389,9 @@ export default function UploadPage() {
     setStatus('idle');
     setErrorMessage('');
     setUploadProgress(0);
+    setCsvProfile(null);
+    setProfileStatus('idle');
+    profileRequestId.current += 1;
   }
 
   async function startUpload() {
@@ -358,6 +519,9 @@ export default function UploadPage() {
               uploadConfig
                 ?.maxFileSizeBytes
             }
+            sampleFileUrl={
+              SAMPLE_FILE_URL
+            }
             disabled={
               status ===
               'uploading'
@@ -369,7 +533,7 @@ export default function UploadPage() {
               handleDropRejected
             }
             onUseSampleFile={
-              loadSampleFile
+              useSampleFile
             }
           />
         )}
@@ -388,6 +552,152 @@ export default function UploadPage() {
                 removeFile
               }
             />
+
+            <div className="csv-profile">
+              <div className="csv-profile-header">
+                <div>
+                  <span>
+                    Quick profile
+                  </span>
+
+                  <strong>
+                    {profileStatus ===
+                    'loading'
+                      ? 'Reading CSV header...'
+                      : 'Ready before upload'}
+                  </strong>
+                </div>
+              </div>
+
+              {profileStatus ===
+                'ready' &&
+                csvProfile && (
+                  <>
+                    <dl className="csv-profile-metrics">
+                      <div>
+                        <dt>
+                          Columns
+                        </dt>
+
+                        <dd>
+                          {
+                            csvProfile.columnCount
+                          }
+                        </dd>
+                      </div>
+
+                      <div>
+                        <dt>
+                          Estimated rows
+                        </dt>
+
+                        <dd>
+                          {csvProfile.estimatedRows.toLocaleString()}
+                        </dd>
+                      </div>
+
+                      <div>
+                        <dt>
+                          Sampled rows
+                        </dt>
+
+                        <dd>
+                          {csvProfile.sampledRows.toLocaleString()}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {csvProfile.headers
+                      .length > 0 && (
+                      <div className="csv-header-preview">
+                        {csvProfile.headers.map(
+                          (
+                            header,
+                            index,
+                          ) => (
+                            <span
+                              key={
+                                `${header}-${index}`
+                              }
+                            >
+                              {header}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
+
+                    {csvProfile.previewRows
+                      .length > 0 && (
+                      <div className="csv-row-preview">
+                        <table>
+                          <thead>
+                            <tr>
+                              {csvProfile.previewColumns.map(
+                                (
+                                  column,
+                                  index,
+                                ) => (
+                                  <th
+                                    key={
+                                      `${column}-${index}`
+                                    }
+                                  >
+                                    {column ||
+                                      `Column ${index + 1}`}
+                                  </th>
+                                ),
+                              )}
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {csvProfile.previewRows.map(
+                              (
+                                row,
+                                rowIndex,
+                              ) => (
+                                <tr
+                                  key={
+                                    `preview-row-${rowIndex}`
+                                  }
+                                >
+                                  {csvProfile.previewColumns.map(
+                                    (
+                                      column,
+                                      columnIndex,
+                                    ) => (
+                                      <td
+                                        key={
+                                          `${column}-${columnIndex}`
+                                        }
+                                      >
+                                        {row[
+                                          columnIndex
+                                        ] || '-'}
+                                      </td>
+                                    ),
+                                  )}
+                                </tr>
+                              ),
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {profileStatus ===
+                'error' && (
+                <p className="csv-profile-message">
+                  StreamWeaver could not
+                  read a local header
+                  sample, but the upload
+                  can still continue.
+                </p>
+              )}
+            </div>
 
             {status ===
               'uploading' && (

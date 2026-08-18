@@ -55,7 +55,11 @@ export default function ApiStatus() {
 
   if (status === 'checking') {
     return (
-      <div className="api-status checking">
+      <div
+        className="api-status checking"
+        role="status"
+        aria-live="polite"
+      >
         <span className="status-dot" />
         Checking API
       </div>
@@ -64,7 +68,11 @@ export default function ApiStatus() {
 
   if (status === 'online') {
     return (
-      <div className="api-status online">
+      <div
+        className="api-status online"
+        role="status"
+        aria-live="polite"
+      >
         <Wifi size={15} />
         API Online
       </div>
@@ -72,7 +80,11 @@ export default function ApiStatus() {
   }
 
   return (
-    <div className="api-status offline">
+    <div
+      className="api-status offline"
+      role="status"
+      aria-live="polite"
+    >
       <WifiOff size={15} />
       API Offline
     </div>

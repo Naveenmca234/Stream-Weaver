@@ -1,0 +1,288 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply text-sm antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-base-950 text-gray-100 font-sans;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-base-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-base-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-base-500;
+  }
+}
+
+@layer components {
+  /* Card */
+  .card {
+    @apply bg-base-900 border border-base-700 rounded-lg;
+  }
+
+  .card-sm {
+    @apply bg-base-900 border border-base-700 rounded-md;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-base-900;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent-600 hover:bg-accent-500 text-white;
+  }
+
+  .btn-secondary {
+    @apply btn bg-base-700 hover:bg-base-600 text-gray-200 border border-base-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-600 hover:bg-danger-500 text-white;
+  }
+
+  .btn-ghost {
+    @apply btn text-gray-400 hover:text-gray-100 hover:bg-base-800;
+  }
+
+  .btn-sm {
+    @apply px-2 py-1 text-xs;
+  }
+
+  /* Form inputs */
+  .input {
+    @apply w-full bg-base-800 border border-base-600 rounded-md px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500 transition-colors;
+  }
+
+  .input-sm {
+    @apply input px-2 py-1 text-xs;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-gray-400 mb-1;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-success-500/15 text-success-400 border border-success-500/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-500/15 text-warning-400 border border-warning-500/20;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger-500/15 text-danger-400 border border-danger-500/20;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent-500/15 text-accent-400 border border-accent-500/20;
+  }
+
+  .badge-neutral {
+    @apply badge bg-base-700 text-gray-400 border border-base-600;
+  }
+
+  .badge-indigo {
+    @apply badge bg-indigo-500/15 text-indigo-400 border border-indigo-500/20;
+  }
+
+  /* Run status badges */
+  .status-running { @apply badge bg-accent-500/15 text-accent-400 border-accent-500/20; }
+  .status-completed { @apply badge bg-success-500/15 text-success-400 border-success-500/20; }
+  .status-failed { @apply badge bg-danger-500/15 text-danger-400 border-danger-500/20; }
+  .status-queued { @apply badge bg-base-700 text-gray-400 border-base-600; }
+  .status-cancelled { @apply badge bg-warning-500/15 text-warning-400 border-warning-500/20; }
+  .status-paused { @apply badge bg-indigo-500/15 text-indigo-400 border-indigo-500/20; }
+
+  /* Tables */
+  .table-header {
+    @apply text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 text-left;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm text-gray-300 border-b border-base-800;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply animate-pulse bg-base-800 rounded;
+  }
+
+  /* Flow animation for ETL pipeline */
+  .animate-flow-dash {
+    stroke-dasharray: 8 4;
+    animation: flow 1.5s linear infinite;
+  }
+
+  /* Metric cards */
+  .metric-card {
+    @apply card p-4 flex flex-col gap-1;
+  }
+
+  .metric-value {
+    @apply text-2xl font-bold text-gray-100 tracking-tight;
+  }
+
+  .metric-label {
+    @apply text-xs text-gray-500 font-medium;
+  }
+
+  .metric-change-positive {
+    @apply text-success-400 text-xs font-medium;
+  }
+
+  .metric-change-negative {
+    @apply text-danger-400 text-xs font-medium;
+  }
+
+  /* Sidebar nav */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-400 hover:text-gray-100 hover:bg-base-800 transition-all cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply nav-item text-accent-400 bg-accent-500/10 hover:bg-accent-500/15;
+  }
+
+  /* Code blocks */
+  .code-block {
+    @apply bg-base-950 border border-base-700 rounded-md p-3 font-mono text-xs text-gray-300 overflow-x-auto;
+  }
+
+  /* Dividers */
+  .divider {
+    @apply border-t border-base-800 my-4;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs text-gray-100 bg-base-700 rounded shadow-lg border border-base-600 pointer-events-none whitespace-nowrap;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-accent-400 to-indigo-400 bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply bg-base-900/80 backdrop-blur-sm border border-base-700;
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ReactFlow overrides */
+.react-flow__background {
+  background-color: #0a0b0d;
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__edge-path {
+  stroke: #363b54;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #06b6d4;
+}
+
+.react-flow__handle {
+  background: #06b6d4;
+  border: 2px solid #0f1117;
+  width: 10px;
+  height: 10px;
+}
+
+.react-flow__minimap {
+  background: #141620;
+  border: 1px solid #2d3148;
+  border-radius: 6px;
+}
+
+.react-flow__controls {
+  background: #1a1d2a;
+  border: 1px solid #2d3148;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.react-flow__controls-button {
+  background: #1a1d2a;
+  border: none;
+  border-bottom: 1px solid #2d3148;
+  color: #9ca3af;
+}
+
+.react-flow__controls-button:hover {
+  background: #252838;
+  color: #f3f4f6;
+}
+
+/* Progress bar animation */
+@keyframes progress-bar {
+  from { background-position: 40px 0; }
+  to { background-position: 0 0; }
+}
+
+.progress-animated {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.1) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 40px 40px;
+  animation: progress-bar 1s linear infinite;
+}

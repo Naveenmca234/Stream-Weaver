@@ -15,13 +15,9 @@ function readInteger(name, fallback, minimum = 1) {
   return value;
 }
 
-const clientOrigin = process.env.CLIENT_ORIGIN?.trim();
-
-if (!clientOrigin) {
-  throw new Error(
-    'CLIENT_ORIGIN environment variable is required.',
-  );
-}
+const clientOrigin =
+  process.env.CLIENT_ORIGIN?.trim() ||
+  'http://localhost:5173';
 
 const env = Object.freeze({
   nodeEnv: process.env.NODE_ENV?.trim() || 'development',
