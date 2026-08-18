@@ -152,10 +152,10 @@ services:
       
       # File upload configuration
       UPLOAD_DIR: /app/uploads
-      MAX_FILE_SIZE: 10737418240         # 10GB
+      MAX_FILE_SIZE: 5368709120         # 5GB
       
       # ETL Processing
-      BATCH_SIZE: 5000                    # Records per batch
+      BATCH_SIZE: 10000                   # Records per batch
       
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -175,7 +175,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: '3'
           memory: 2G
         reservations:
           cpus: '1'
