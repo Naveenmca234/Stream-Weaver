@@ -13,8 +13,12 @@ const samplePath = path.join(
   'employees-preview-limit.csv',
 );
 
-const apiBase = 'http://localhost:5000/api';
-const socketOrigin = 'http://localhost:5000';
+const backendOrigin =
+  process.env.WEEK3_BACKEND_ORIGIN?.trim() ||
+  'http://localhost:5001';
+
+const apiBase = `${backendOrigin}/api`;
+const socketOrigin = backendOrigin;
 
 let passed = 0;
 let failed = 0;
@@ -197,6 +201,7 @@ console.log('');
 console.log('============================================');
 console.log(' StreamWeaver Week 3 Realtime Verification');
 console.log('============================================');
+console.log(`Backend: ${backendOrigin}`);
 console.log(`Passed: ${passed}`);
 console.log(`Failed: ${failed}`);
 console.log(`Progress events observed: ${progressEvents}`);
