@@ -27,6 +27,7 @@ import {
 import '../styles/mapping.css';
 
 const DESTINATION_FIELD_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const MAX_DESTINATION_FIELD_LENGTH = 120;
 
 function suggestDestinationField(label, index) {
   const words = String(label ?? '')
@@ -71,6 +72,22 @@ function buildDefaultMappings(columns) {
   }));
 }
 
+function hasMatchingSourceColumns(mappings, columns) {
+  return (
+    Array.isArray(mappings) &&
+    mappings.length === columns.length &&
+    mappings.every((mapping, index) => {
+      const column = columns[index];
+
+      return (
+        mapping?.sourceKey === column.key &&
+        mapping?.sourceIndex === column.index &&
+        typeof mapping?.destinationField === 'string'
+      );
+    })
+  );
+}
+
 function validateMappings(mappings) {
   const errors = new Map();
   const destinations = new Map();
@@ -86,10 +103,13 @@ function validateMappings(mappings) {
       continue;
     }
 
-    if (!DESTINATION_FIELD_PATTERN.test(field)) {
+    if (
+      field.length > MAX_DESTINATION_FIELD_LENGTH ||
+      !DESTINATION_FIELD_PATTERN.test(field)
+    ) {
       errors.set(
         mapping.sourceKey,
-        'Use letters, numbers, and underscores; start with a letter or underscore.',
+        'Use 120 or fewer letters, numbers, and underscores; start with a letter or underscore.',
       );
       continue;
     }
@@ -179,10 +199,7 @@ export default function MappingPage() {
           try {
             const parsed = JSON.parse(stored);
 
-            if (
-              Array.isArray(parsed) &&
-              parsed.length === result.columns.length
-            ) {
+            if (hasMatchingSourceColumns(parsed, result.columns)) {
               setMappings(parsed);
             } else {
               setMappings(buildDefaultMappings(result.columns));
