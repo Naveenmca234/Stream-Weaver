@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "node --no-node-snapshot src/server.js",
+    "dev": "nodemon --exec \"node --no-node-snapshot\" src/server.js",
+    "test:sandbox": "node --no-node-snapshot ../scripts/week3-sandbox-tests.mjs"
   },
   "keywords": [],
   "author": "",
