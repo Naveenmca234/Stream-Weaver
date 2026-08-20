@@ -9,43 +9,49 @@ on:
 jobs:
   format-check:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: client
         run: npm ci
 
-      - name: Check code format
-        run: npm run format:check --workspace=@streamweaver/backend 2>/dev/null || echo "Format warning"
+      - name: Check frontend code quality
+        working-directory: client
+        run: npm run lint
 
   type-check:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: client
         run: npm ci
 
-      - name: TypeScript type check
-        run: npm run tsc --workspace=@streamweaver/backend || true
+      - name: Verify frontend production build
+        working-directory: client
+        run: npm run build
 
   security-scan:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
