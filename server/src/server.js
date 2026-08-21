@@ -1,21 +1,35 @@
+import { createServer } from 'node:http';
+import fs from 'node:fs';
+
 import app from './app.js';
 import env from './config/env.js';
-// Set a short process title for easier identification in process lists
-process.title = 'streamweaver-backend';
-import fs from 'fs';
-
-const pkg = JSON.parse(
-  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-);
 
 import {
   initializeUploadLifecycle,
 } from './services/uploadCleanupService.js';
 
+import {
+  closeSocketServer,
+  initializeSocketServer,
+} from './sockets/socketServer.js';
+
+process.title = 'streamweaver-backend';
+
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+);
+
 const stopUploadLifecycle =
   await initializeUploadLifecycle();
 
-const server = app.listen(
+const server = createServer(app);
+
+initializeSocketServer(
+  server,
+  env.clientOrigin,
+);
+
+server.listen(
   env.port,
   () => {
     console.log('');
@@ -48,6 +62,10 @@ const server = app.listen(
     );
 
     console.log(
+      `WebSocket   : ws://localhost:${env.port}`,
+    );
+
+    console.log(
       `Version     : ${pkg.version}`,
     );
 
@@ -73,12 +91,36 @@ server.on(
   },
 );
 
-function shutdown(signal) {
+let shuttingDown = false;
+
+async function shutdown(signal) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
   console.log(
     `\n${signal} received. Closing server...`,
   );
 
   stopUploadLifecycle();
+
+  try {
+    await closeSocketServer();
+  } catch (error) {
+    console.error(
+      'Failed to close Socket.IO cleanly:',
+      error,
+    );
+  }
+
+  if (!server.listening) {
+    console.log(
+      'StreamWeaver backend stopped.',
+    );
+    process.exit(0);
+  }
 
   server.close((error) => {
     if (error) {
@@ -100,12 +142,12 @@ function shutdown(signal) {
 
 process.on(
   'SIGINT',
-  () => shutdown('SIGINT'),
+  () => void shutdown('SIGINT'),
 );
 
 process.on(
   'SIGTERM',
-  () => shutdown('SIGTERM'),
+  () => void shutdown('SIGTERM'),
 );
 
 process.on(

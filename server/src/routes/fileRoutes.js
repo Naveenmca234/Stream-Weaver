@@ -8,6 +8,10 @@ import {
 } from '../controllers/fileController.js';
 
 import {
+  startJob,
+} from '../controllers/jobController.js';
+
+import {
   validateUploadId,
 } from '../middleware/validateUploadId.js';
 
@@ -33,6 +37,12 @@ router.post(
   '/:uploadId/mapping/preview',
   validateUploadId,
   previewMappedRows,
+);
+
+router.post(
+  '/:uploadId/process',
+  validateUploadId,
+  startJob,
 );
 
 export default router;

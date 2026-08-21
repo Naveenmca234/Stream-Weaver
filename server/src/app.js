@@ -1,4 +1,4 @@
- import cors from 'cors';
+import cors from 'cors';
 import express from 'express';
 
 import env from './config/env.js';
@@ -13,6 +13,7 @@ import {
 
 import fileRoutes from './routes/fileRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
 
 const app = express();
 
@@ -84,6 +85,11 @@ app.use(
 app.use(
   '/api/files',
   fileRoutes,
+);
+
+app.use(
+  '/api/jobs',
+  jobRoutes,
 );
 
 app.use(notFound);
