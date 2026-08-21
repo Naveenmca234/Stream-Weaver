@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Code2,
   Database,
+  Download,
   Play,
   RefreshCw,
   ShieldCheck,
@@ -339,7 +340,6 @@ export default function MappingPage() {
     }
   }
 
-<<<<<<< HEAD
   async function beginProcessing() {
     if (
       !mappingIsValid ||
@@ -373,27 +373,32 @@ export default function MappingPage() {
       setProcessingStatus('error');
       setErrorMessage(getErrorMessage(error));
     }
-=======
+  }
+
   function downloadMappedPreview() {
     if (!mappedPreview) {
       return;
     }
 
     const exportData = mappedPreview.rows.map((row) => row.data);
+
     const blob = new Blob(
       [JSON.stringify(exportData, null, 2)],
       { type: 'application/json' },
     );
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `${mappedPreview.fileName.replace(/\.csv$/i, '')}-mapped-preview.json`;
+    link.download =
+      mappedPreview.fileName.replace(/\.csv$/i, '') +
+      '-mapped-preview.json';
+
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
->>>>>>> origin/main
   }
 
   if (status === 'loading') {
@@ -584,6 +589,16 @@ export default function MappingPage() {
                 <CheckCircle2 size={15} />
                 Pipeline verified
               </div>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={downloadMappedPreview}
+                title="Download the mapped preview rows as JSON"
+              >
+                <Download size={15} />
+                Download JSON
+              </button>
             </div>
 
             <div className="mapped-preview-table-wrap">
