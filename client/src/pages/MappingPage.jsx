@@ -9,9 +9,12 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Code2,
   Database,
   Download,
+  Play,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 
 import {
@@ -22,6 +25,7 @@ import {
 import {
   getCsvPreview,
   previewCsvMapping,
+  startProcessingJob,
 } from '../services/fileApi';
 
 import '../styles/mapping.css';
@@ -156,7 +160,7 @@ function getErrorMessage(error) {
 
   return (
     error.response.data?.message ||
-    'The mapping could not be validated.'
+    'The request could not be completed.'
   );
 }
 
@@ -166,8 +170,10 @@ export default function MappingPage() {
 
   const [preview, setPreview] = useState(null);
   const [mappings, setMappings] = useState([]);
+  const [transformations, setTransformations] = useState({});
   const [status, setStatus] = useState('loading');
   const [requestStatus, setRequestStatus] = useState('idle');
+  const [processingStatus, setProcessingStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [mappedPreview, setMappedPreview] = useState(null);
 
@@ -211,6 +217,21 @@ export default function MappingPage() {
           setMappings(buildDefaultMappings(result.columns));
         }
 
+        const transformStorage = sessionStorage.getItem(
+          `streamweaver:transformations:${uploadId}`,
+        );
+
+        if (transformStorage) {
+          try {
+            const parsed = JSON.parse(transformStorage);
+            if (parsed && typeof parsed === 'object') {
+              setTransformations(parsed);
+            }
+          } catch {
+            setTransformations({});
+          }
+        }
+
         setStatus('ready');
       } catch (error) {
         if (!active) {
@@ -240,6 +261,17 @@ export default function MappingPage() {
     );
   }, [mappings, status, uploadId]);
 
+  useEffect(() => {
+    if (status !== 'ready') {
+      return;
+    }
+
+    sessionStorage.setItem(
+      `streamweaver:transformations:${uploadId}`,
+      JSON.stringify(transformations),
+    );
+  }, [status, transformations, uploadId]);
+
   function updateDestinationField(sourceKey, value) {
     setMappings((current) =>
       current.map((mapping) =>
@@ -254,15 +286,35 @@ export default function MappingPage() {
 
     setMappedPreview(null);
     setRequestStatus('idle');
+    setProcessingStatus('idle');
+    setErrorMessage('');
+  }
+
+  function updateTransformation(sourceKey, code) {
+    setTransformations((current) => ({
+      ...current,
+      [sourceKey]: code,
+    }));
+    setProcessingStatus('idle');
     setErrorMessage('');
   }
 
   function resetMappings() {
     const defaults = buildDefaultMappings(preview.columns);
     setMappings(defaults);
+    setTransformations({});
     setMappedPreview(null);
     setRequestStatus('idle');
+    setProcessingStatus('idle');
     setErrorMessage('');
+  }
+
+  function normalizedMappings() {
+    return mappings.map((mapping) => ({
+      sourceKey: mapping.sourceKey,
+      sourceIndex: mapping.sourceIndex,
+      destinationField: mapping.destinationField.trim(),
+    }));
   }
 
   async function validateWithStreamPipeline() {
@@ -277,11 +329,7 @@ export default function MappingPage() {
     try {
       const result = await previewCsvMapping(
         uploadId,
-        mappings.map((mapping) => ({
-          sourceKey: mapping.sourceKey,
-          sourceIndex: mapping.sourceIndex,
-          destinationField: mapping.destinationField.trim(),
-        })),
+        normalizedMappings(),
       );
 
       setMappedPreview(result);
@@ -292,21 +340,61 @@ export default function MappingPage() {
     }
   }
 
+  async function beginProcessing() {
+    if (
+      !mappingIsValid ||
+      requestStatus !== 'success' ||
+      processingStatus === 'loading'
+    ) {
+      return;
+    }
+
+    setProcessingStatus('loading');
+    setErrorMessage('');
+
+    const activeTransformations = mappings
+      .map((mapping) => ({
+        field: mapping.destinationField.trim(),
+        code: String(transformations[mapping.sourceKey] ?? '').trim(),
+      }))
+      .filter((transformation) => transformation.code);
+
+    try {
+      const job = await startProcessingJob(
+        uploadId,
+        normalizedMappings(),
+        activeTransformations,
+      );
+
+      navigate(
+        `/imports/${uploadId}/processing/${job.jobId}`,
+      );
+    } catch (error) {
+      setProcessingStatus('error');
+      setErrorMessage(getErrorMessage(error));
+    }
+  }
+
   function downloadMappedPreview() {
     if (!mappedPreview) {
       return;
     }
 
     const exportData = mappedPreview.rows.map((row) => row.data);
+
     const blob = new Blob(
       [JSON.stringify(exportData, null, 2)],
       { type: 'application/json' },
     );
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `${mappedPreview.fileName.replace(/\.csv$/i, '')}-mapped-preview.json`;
+    link.download =
+      mappedPreview.fileName.replace(/\.csv$/i, '') +
+      '-mapped-preview.json';
+
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -475,84 +563,141 @@ export default function MappingPage() {
         </div>
       </section>
 
-      {requestStatus === 'error' && (
+      {(requestStatus === 'error' || processingStatus === 'error') && (
         <div className="mapping-request-error" role="alert">
           <AlertTriangle size={18} />
           <div>
-            <strong>Mapping pipeline failed</strong>
+            <strong>Pipeline request failed</strong>
             <p>{errorMessage}</p>
           </div>
         </div>
       )}
 
       {mappedPreview && requestStatus === 'success' && (
-        <section className="mapped-preview-panel">
-          <div className="mapped-preview-heading">
-            <div>
-              <p className="page-eyebrow">STREAM RESULT</p>
-              <h2>Mapped object preview</h2>
-              <p>
-                Generated by the Node.js CSV object Transform to Mapping Transform pipeline.
-              </p>
+        <>
+          <section className="mapped-preview-panel">
+            <div className="mapped-preview-heading">
+              <div>
+                <p className="page-eyebrow">STREAM RESULT</p>
+                <h2>Mapped object preview</h2>
+                <p>
+                  Generated by the Node.js CSV object Transform to Mapping Transform pipeline.
+                </p>
+              </div>
+
+              <div className="mapping-success-badge">
+                <CheckCircle2 size={15} />
+                Pipeline verified
+              </div>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={downloadMappedPreview}
+                title="Download the mapped preview rows as JSON"
+              >
+                <Download size={15} />
+                Download JSON
+              </button>
             </div>
 
-            <div className="mapping-success-badge">
-              <CheckCircle2 size={15} />
-              Pipeline verified
-            </div>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={downloadMappedPreview}
-              title="Download the mapped preview rows as JSON"
-            >
-              <Download size={15} />
-              Download JSON
-            </button>
-          </div>
-
-          <div className="mapped-preview-table-wrap">
-            <table className="mapped-preview-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  {mappedPreview.mappings.map((mapping) => (
-                    <th key={mapping.destinationField}>
-                      {mapping.destinationField}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {mappedPreview.rows.slice(0, 8).map((row) => (
-                  <tr key={row.rowNumber}>
-                    <td>{row.rowNumber}</td>
+            <div className="mapped-preview-table-wrap">
+              <table className="mapped-preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
                     {mappedPreview.mappings.map((mapping) => (
-                      <td key={mapping.destinationField}>
-                        {row.data[mapping.destinationField] === null ||
-                        row.data[mapping.destinationField] === ''
-                          ? '-'
-                          : row.data[mapping.destinationField]}
-                      </td>
+                      <th key={mapping.destinationField}>
+                        {mapping.destinationField}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
 
-          <div className="mapped-preview-footer">
-            <span>
-              Backend preview: {mappedPreview.previewCount} / {mappedPreview.previewLimit}
-              {mappedPreview.hasMoreRows ? ' - additional rows exist' : ''}
-            </span>
-            <strong>
-              Week 2 mapping + Transform stream verification complete for this configuration.
-            </strong>
-          </div>
-        </section>
+                <tbody>
+                  {mappedPreview.rows.slice(0, 8).map((row) => (
+                    <tr key={row.rowNumber}>
+                      <td>{row.rowNumber}</td>
+                      {mappedPreview.mappings.map((mapping) => (
+                        <td key={mapping.destinationField}>
+                          {row.data[mapping.destinationField] === null ||
+                          row.data[mapping.destinationField] === ''
+                            ? '-'
+                            : row.data[mapping.destinationField]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="sandbox-panel">
+            <div className="sandbox-panel-heading">
+              <div className="sandbox-heading-icon">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <p className="page-eyebrow">SECURE TRANSFORMATIONS</p>
+                <h2>Optional inline JavaScript</h2>
+                <p>
+                  Code runs inside isolated-vm with a memory limit and execution timeout. Node.js process, require, Buffer, filesystem and network APIs are not exposed.
+                </p>
+              </div>
+            </div>
+
+            <div className="sandbox-transform-list">
+              {mappings.map((mapping) => (
+                <div className="sandbox-transform-row" key={mapping.sourceKey}>
+                  <div>
+                    <Code2 size={17} />
+                    <div>
+                      <strong>{mapping.destinationField}</strong>
+                      <span>Optional transformation</span>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={transformations[mapping.sourceKey] ?? ''}
+                    onChange={(event) =>
+                      updateTransformation(mapping.sourceKey, event.target.value)
+                    }
+                    placeholder="Example: return String(value).trim().toUpperCase();"
+                    rows={3}
+                    spellCheck="false"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="sandbox-actions">
+              <div>
+                <ShieldCheck size={16} />
+                Empty transformation fields are skipped safely.
+              </div>
+
+              <button
+                type="button"
+                className="primary-button"
+                disabled={processingStatus === 'loading'}
+                onClick={beginProcessing}
+              >
+                {processingStatus === 'loading' ? (
+                  <>
+                    <RefreshCw size={16} className="spin" />
+                    Starting processing...
+                  </>
+                ) : (
+                  <>
+                    <Play size={16} />
+                    Start live processing
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </>
       )}
     </div>
   );

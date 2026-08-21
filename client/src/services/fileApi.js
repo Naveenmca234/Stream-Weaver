@@ -62,3 +62,27 @@ export async function previewCsvMapping(uploadId, mappings) {
 
   return response.data.data;
 }
+
+export async function startProcessingJob(
+  uploadId,
+  mappings,
+  transformations,
+) {
+  const response = await api.post(
+    `/files/${encodeURIComponent(uploadId)}/process`,
+    {
+      mappings,
+      transformations,
+    },
+  );
+
+  return response.data.data;
+}
+
+export async function getProcessingJob(jobId) {
+  const response = await api.get(
+    `/jobs/${encodeURIComponent(jobId)}`,
+  );
+
+  return response.data.data;
+}
