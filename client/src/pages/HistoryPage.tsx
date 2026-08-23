@@ -1,6 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import toast from 'react-hot-toast';
+
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm' }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-xl font-semibold text-white">{title}</h3>
+        <p className="mt-3 text-slate-400">{message}</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition">Cancel</button>
+          <button onClick={onConfirm} className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-400 transition">{confirmText}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface ImportJob {
   uploadId: string;
@@ -19,6 +36,7 @@ const HistoryPage = () => {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; job: ImportJob | null; force: boolean }>({ isOpen: false, job: null, force: false });
   const currentUploadId = searchParams.get('uploadId') ?? '';
 
   useEffect(() => {
@@ -39,8 +57,36 @@ const HistoryPage = () => {
   const totalRows = useMemo(() => jobs.reduce((sum, job) => sum + job.totalRows, 0), [jobs]);
   const latestJob = jobs[0];
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.job) return;
+    const job = deleteModal.job;
+    const forceStr = deleteModal.force ? '?force=true' : '';
+    try {
+      await api.delete(`/imports/${job.uploadId}${forceStr}`);
+      toast.success('Dataset deleted successfully');
+      setJobs((prev) => prev.filter((j) => j.uploadId !== job.uploadId));
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to delete dataset';
+      if (msg === 'Import not found' && !deleteModal.force) {
+        setDeleteModal({ isOpen: true, job, force: true });
+        return;
+      }
+      toast.error(`${msg}`);
+    } finally {
+      setDeleteModal({ isOpen: false, job: null, force: false });
+    }
+  };
+
   return (
     <div className="space-y-8">
+      <ConfirmModal 
+        isOpen={deleteModal.isOpen} 
+        title={deleteModal.force ? 'Force Delete?' : 'Delete Dataset'} 
+        message={deleteModal.force ? 'Import not found for your account. Try force-delete as admin?' : `Are you sure you want to delete ${deleteModal.job?.fileName}? This will remove all related data.`}
+        confirmText="Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteModal({ isOpen: false, job: null, force: false })}
+      />
       <section className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-3xl">
@@ -108,48 +154,34 @@ const HistoryPage = () => {
                     >
                       Inspect
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/audit?uploadId=${job.uploadId}`)}
-                      className="rounded-full border border-white/10 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20"
-                    >
-                      Audit
-                    </button>
                       <button
                         type="button"
-                        onClick={async () => {
-                          // confirm and delete
-                          // eslint-disable-next-line no-restricted-globals
-                          if (!confirm(`Delete dataset ${job.fileName}? This will remove all related data.`)) return;
-                          try {
-                            await api.delete(`/imports/${job.uploadId}`);
-                            // refresh list
-                            const resp = await api.get('/imports');
-                            setJobs(resp.data.jobs ?? []);
-                          } catch (err: any) {
-                            // eslint-disable-next-line no-console
-                            console.error('Delete failed', err);
-                            const msg = err?.response?.data?.message || err?.message || 'Failed to delete dataset';
-                            const details = err?.response?.data?.details ? `: ${JSON.stringify(err.response.data.details)}` : '';
-                            // If import not found, allow admin force-delete retry
-                            if (msg === 'Import not found' && /* eslint-disable-next-line no-restricted-globals */ confirm('Import not found for your account. Try force-delete as admin?')) {
-                              try {
-                                await api.delete(`/imports/${job.uploadId}?force=true`);
-                                const resp = await api.get('/imports');
-                                setJobs(resp.data.jobs ?? []);
-                                return;
-                              } catch (err2: any) {
-                                // eslint-disable-next-line no-console
-                                console.error('Force delete failed', err2);
-                                const m2 = err2?.response?.data?.message || err2?.message || 'Force delete failed';
-                                alert(`${m2}${err2?.response?.data?.details ? `: ${JSON.stringify(err2.response.data.details)}` : ''}`);
-                                return;
-                              }
-                            }
-
-                            alert(`${msg}${details}`);
-                          }
-                        }}
+                        onClick={() => navigate(`/audit?uploadId=${job.uploadId}`)}
+                        className="rounded-full border border-white/10 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20"
+                      >
+                        Audit
+                      </button>
+                    {job.status === 'completed' && (
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/api/imports/${job.uploadId}/download?type=processed`, '_blank')}
+                        className="rounded-full border border-white/10 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+                      >
+                        Export
+                      </button>
+                    )}
+                    {job.failedRows > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/api/imports/${job.uploadId}/download?type=failed`, '_blank')}
+                        className="rounded-full border border-white/10 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                      >
+                        Failed Rows
+                      </button>
+                    )}
+                      <button
+                        type="button"
+                        onClick={() => setDeleteModal({ isOpen: true, job, force: false })}
                         className="rounded-full border border-white/10 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
                       >
                         Remove

@@ -1,35 +1,55 @@
 import { Router, Response } from 'express';
-import TransformedRow from '../models/TransformedRow';
-import ImportJob from '../models/ImportJob';
 import { requireAuth, AuthedRequest } from '../middleware/authMiddleware';
+import { db } from '../storage/sqlite/database';
 
 const router = Router();
 router.use(requireAuth);
 
-router.get('/latest', async (req: AuthedRequest, res: Response) => {
+router.get('/', (req: AuthedRequest, res: Response) => {
   try {
-    const owners = [req.user?.email, req.user?.id].filter(Boolean) as string[];
-    const job = await ImportJob.findOne(owners.length ? { createdBy: { $in: owners } } : {}).sort({ createdAt: -1 }).lean();
-    if (!job) return res.status(404).json({ message: 'No imports found' });
+    const uploadId = req.query.uploadId as string;
+    if (!uploadId) return res.status(400).json({ message: 'uploadId is required' });
 
-    const rows = await TransformedRow.find({ uploadId: job.uploadId }).sort({ rowNumber: 1 }).limit(1000).lean();
-    res.json({ uploadId: job.uploadId, rows });
+    const stmt = db.prepare(`SELECT * FROM transformation_rules WHERE job_id = ? AND rule_type = 'transform'`);
+    const rules = stmt.all(uploadId);
+    
+    res.json({ rules: rules.map((r: any) => ({ ...r, config: JSON.parse(r.config) })) });
   } catch (error) {
-    res.status(500).json({ message: 'Could not load latest transformed rows', error: String(error) });
+    res.status(500).json({ message: 'Failed to fetch transformation rules', error: String(error) });
   }
 });
 
-router.get('/:uploadId', async (req: AuthedRequest, res: Response) => {
+router.post('/', (req: AuthedRequest, res: Response) => {
   try {
-    const { uploadId } = req.params;
-    const owners = [req.user?.email, req.user?.id].filter(Boolean) as string[];
-    const job = await ImportJob.findOne(owners.length ? { uploadId, createdBy: { $in: owners } } : { uploadId }).lean();
-    if (!job) return res.status(404).json({ message: 'Import not found' });
+    const { uploadId, field, operation, parameters, customCode } = req.body;
+    if (!uploadId || !field || !operation) {
+      return res.status(400).json({ message: 'uploadId, field, and operation are required' });
+    }
 
-    const rows = await TransformedRow.find({ uploadId }).sort({ rowNumber: 1 }).limit(1000).lean();
-    res.json({ rows });
+    const ruleId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const config = JSON.stringify({ field, operation, parameters, customCode });
+
+    const stmt = db.prepare(`
+      INSERT INTO transformation_rules (id, job_id, rule_type, config)
+      VALUES (?, ?, 'transform', ?)
+    `);
+    
+    stmt.run(ruleId, uploadId, config);
+
+    res.json({ message: 'Transformation rule added', ruleId });
   } catch (error) {
-    res.status(500).json({ message: 'Could not load transformed rows', error: String(error) });
+    res.status(500).json({ message: 'Failed to add transformation rule', error: String(error) });
+  }
+});
+
+router.delete('/:id', (req: AuthedRequest, res: Response) => {
+  try {
+    const ruleId = req.params.id;
+    const stmt = db.prepare(`DELETE FROM transformation_rules WHERE id = ? AND rule_type = 'transform'`);
+    stmt.run(ruleId);
+    res.json({ message: 'Rule deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete transformation rule', error: String(error) });
   }
 });
 
