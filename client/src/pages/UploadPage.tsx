@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import api from '../services/api';
 import uploadFile from '../services/uploadService';
 import { joinRoom, onImportProgress } from '../services/socket';
+import toast from 'react-hot-toast';
 
 const UploadPage = () => {
   const navigate = useNavigate();
@@ -13,7 +14,6 @@ const UploadPage = () => {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [profile, setProfile] = useState<any>(null);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingColumns, setSavingColumns] = useState(false);
 
@@ -38,10 +38,9 @@ const UploadPage = () => {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!acceptedFiles.length) return;
     const file = acceptedFiles[0];
-    setError('');
 
     if (!['text/csv', 'application/json', 'application/octet-stream'].includes(file.type) && !/\.(csv|json)$/i.test(file.name)) {
-      setError('Only CSV and JSON files are supported.');
+      toast.error('Only CSV and JSON files are supported.');
       return;
     }
 
@@ -60,15 +59,17 @@ const UploadPage = () => {
     setRowsProcessed(0);
     setRowsFailed(0);
     setRowsPerSecond(0);
-    setError('');
     setLoading(true);
 
     joinRoom(clientUploadId);
 
     try {
-      const response = await uploadFile(file, clientUploadId);
+      const response = await uploadFile(file, clientUploadId, (bytesSent, bytesTotal) => {
+        const percent = Math.round((bytesSent / bytesTotal) * 100);
+        setProgress(percent);
+      });
       const uploadPreview = response.preview ?? [];
-      const id = response.uploadId ?? clientUploadId;
+      const id = response.jobId ?? clientUploadId;
       const columns = response.columns ?? Array.from(new Set(uploadPreview.flatMap(Object.keys)));
 
       setFileName(response.fileName);
@@ -80,10 +81,11 @@ const UploadPage = () => {
 
       const profileResponse = await api.get('/profiling', { params: { uploadId: id } });
       setProfile(profileResponse.data.profile);
+      toast.success('Upload complete! Dataset is ready for profiling.');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Upload failed. Please try again.';
       console.error('Upload page error:', err);
-      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ const UploadPage = () => {
 
   const continueToMapping = async () => {
     if (!selectedColumns.length) {
-      setError('Select at least one column before continuing.');
+      toast.error('Select at least one column before continuing.');
       return;
     }
 
@@ -101,7 +103,7 @@ const UploadPage = () => {
         await api.patch(`/imports/${uploadId}/columns`, { selectedColumns });
         navigate(`/mapping?uploadId=${uploadId}`);
       } catch {
-        setError('Unable to save selected columns.');
+        toast.error('Unable to save selected columns.');
       } finally {
         setSavingColumns(false);
       }
@@ -145,8 +147,6 @@ const UploadPage = () => {
                 Choose file
               </button>
             </div>
-
-            {error && <div className="mt-6 rounded-3xl border border-rose-400/20 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>}
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_0.8fr]">
               <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5">

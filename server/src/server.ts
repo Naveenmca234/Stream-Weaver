@@ -1,19 +1,22 @@
 import express from 'express';
+import { Server as TusServer } from '@tus/server';
+import { FileStore } from '@tus/file-store';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
 import http from 'http';
 import path from 'path';
 import { Server } from 'socket.io';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
-import debugRoutes from './routes/debugRoutes';
 import profilingRoutes from './routes/profilingRoutes';
 import importRoutes from './routes/importRoutes';
 import validationRoutes from './routes/validationRoutes';
 import transformedRoutes from './routes/transformedRoutes';
 import cleaningRoutes from './routes/cleaningRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
+import workflowRoutes from './routes/workflowRoutes';
+import triggerRoutes from './routes/triggerRoutes';
 import { registerSocketHandlers } from './socket/socketHandler';
+import { jobManager } from './workers/jobManager';
 
 dotenv.config();
 
@@ -26,16 +29,27 @@ const io = new Server(server, {
 // Make the Socket.IO server available to routes (req.app.get('io')) so the
 // upload pipeline can emit live progress events as it processes a file.
 app.set('io', io);
+jobManager.setIo(io);
 
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/uploads', uploadRoutes);
-app.use('/api/debug', debugRoutes);
 app.use('/api/profiling', profilingRoutes);
 app.use('/api/cleaning', cleaningRoutes);
 app.use('/api/imports', importRoutes);
 app.use('/api/validations', validationRoutes);
 app.use('/api/transformed', transformedRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/workflows', workflowRoutes);
+app.use('/api/trigger', triggerRoutes);
+
+const tusServer = new TusServer({
+  path: '/uploads',
+  datastore: new FileStore({ directory: path.resolve(__dirname, '../../storage/uploads') }),
+});
+
+app.all('/uploads', (req, res) => tusServer.handle(req, res));
+app.all('/uploads/*', (req, res) => tusServer.handle(req, res));
 
 // Serve the built React client when it's been built (npm run build), so
 // the whole app can run from a single process with `npm start`.
@@ -49,41 +63,16 @@ app.get(/^(?!\/api).*/, (_req, res) => {
 
 registerSocketHandlers(io);
 
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+import { initDb } from './storage/sqlite/database';
+import { ArtifactStore } from './storage/filesystem/artifactStore';
 
-const validateMongoWrite = async () => {
-  const db = mongoose.connection.db;
-  if (!db) throw new Error('MongoDB connection not available');
-  const testCollection = db.collection('streamweaver_write_check');
-  const result = await testCollection.insertOne({ check: true, createdAt: new Date() });
-  await testCollection.deleteOne({ _id: result.insertedId });
-};
+const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  try {
-    if (MONGO_URI) {
-      await mongoose.connect(MONGO_URI);
-      console.log('MongoDB connected using environment URI');
-      await validateMongoWrite();
-    } else {
-      const mongodb = await MongoMemoryServer.create();
-      const uri = mongodb.getUri();
-      await mongoose.connect(uri);
-      console.log('MongoDB connected using embedded memory server');
-    }
-  } catch (error) {
-    console.warn('MongoDB unavailable or not writable, continuing with local auth fallback:', error);
-    try {
-      await mongoose.disconnect();
-    } catch {
-      // ignore
-    }
-    const mongodb = await MongoMemoryServer.create();
-    const uri = mongodb.getUri();
-    await mongoose.connect(uri);
-    console.log('MongoDB connected using embedded memory server');
-  }
+  // Initialize storage layers
+  initDb();
+  ArtifactStore.init();
+  console.log('SQLite database and Filesystem storage initialized.');
 
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };

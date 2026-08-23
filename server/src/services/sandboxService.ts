@@ -36,9 +36,6 @@ export async function runTransform(
   }
 
   const isolatedVm = await loadIsolatedVm();
-  if (!isolatedVm) {
-    return { success: false, error: 'Server sandbox unavailable: isolated-vm is not installed or failed to load. Contact administrator.' };
-  }
 
   if (isolatedVm) {
     try {
@@ -60,6 +57,17 @@ export async function runTransform(
       };
     }
   }
-  // Should never reach here because we require isolated-vm above.
-  return { success: false, error: 'Unexpected error: sandbox fallback disabled.' };
+
+  // Fallback to built-in vm
+  try {
+    const sandbox = { value, row };
+    vm.createContext(sandbox);
+    const result = vm.runInContext(`(function() {\n${code}\n})()`, sandbox, { timeout: EXECUTION_TIMEOUT_MS });
+    return { success: true, value: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }

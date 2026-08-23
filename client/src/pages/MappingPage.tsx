@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
@@ -6,6 +6,7 @@ type MappingRow = {
   source: string;
   target: string;
   transformCode?: string;
+  autoClean?: string;
 };
 
 interface ImportJobSummary {
@@ -31,7 +32,8 @@ const buildMappingRows = (mapping: unknown, sourceColumns: string[]): MappingRow
       rowsBySource.set(source, {
         source,
         target,
-        transformCode: typeof (item as any).transformCode === 'string' ? (item as any).transformCode : undefined
+        transformCode: typeof (item as any).transformCode === 'string' ? (item as any).transformCode : undefined,
+        autoClean: typeof (item as any).autoClean === 'string' ? (item as any).autoClean : undefined
       });
     }
   } else if (mapping && typeof mapping === 'object') {
@@ -43,7 +45,8 @@ const buildMappingRows = (mapping: unknown, sourceColumns: string[]): MappingRow
         rowsBySource.set((value as any).source, {
           source: (value as any).source,
           target: dest,
-          transformCode: typeof (value as any).transformCode === 'string' ? (value as any).transformCode : undefined
+          transformCode: typeof (value as any).transformCode === 'string' ? (value as any).transformCode : undefined,
+          autoClean: typeof (value as any).autoClean === 'string' ? (value as any).autoClean : undefined
         });
       }
     }
@@ -95,6 +98,7 @@ const normalizeMapping = (raw: unknown): Record<string, { source: string; transf
 const MappingPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Array<Record<string, unknown>>>([]);
   const [sourceColumns, setSourceColumns] = useState<string[]>([]);
   const [mappingRows, setMappingRows] = useState<MappingRow[]>([]);
@@ -106,6 +110,22 @@ const MappingPage = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [dataProfile, setDataProfile] = useState<Record<string, any> | null>(null);
+  const [profiling, setProfiling] = useState(false);
+  
+  useEffect(() => {
+    const loadWorkflows = async () => {
+      try {
+        const response = await api.get('/workflows');
+        setWorkflows(response.data.workflows ?? []);
+      } catch {
+        // ignore
+      }
+    };
+    void loadWorkflows();
+  }, []);
 
   useEffect(() => {
     const loadImportJobs = async () => {
@@ -139,11 +159,18 @@ const MappingPage = () => {
 
       try {
         const [previewResponse, mappingResponse] = await Promise.all([
-          api.get('/debug/upload-rows', { params: { uploadId: idFromQuery } }),
+          api.get(`/imports/${idFromQuery}/preview?type=source`),
           api.get(`/imports/${idFromQuery}`)
         ]);
 
-        const uploadedPreview = (previewResponse.data.rows ?? []).map((row: { data: Record<string, unknown> }) => row.data ?? row);
+        // Load profile asynchronously in background
+        setProfiling(true);
+        api.get(`/imports/${idFromQuery}/profile`)
+          .then(res => setDataProfile(res.data.profile))
+          .catch(() => setDataProfile(null))
+          .finally(() => setProfiling(false));
+
+        const uploadedPreview = (previewResponse.data.rows ?? []);
         setPreview(uploadedPreview);
 
         const jobColumns = mappingResponse.data.job?.columns as string[] | undefined;
@@ -186,12 +213,41 @@ const MappingPage = () => {
   const sampleRow = preview[0] ?? {};
   const selectedJob = importJobs.find((job) => job.uploadId === uploadId);
   const oneDatasetAvailable = importJobs.length === 1;
+  
+  // Calculate isAllSelected and isSomeSelected based on mappingRows first
+  const isAllSelectedValue = mappingRows.filter((row) => row.target.trim() !== '').length === mappingRows.length && mappingRows.length > 0;
+  const isSomeSelectedValue = mappingRows.some((row) => row.target.trim() !== '');
+  
   const visibleRows = useMemo(
     () => mappingRows
       .map((row, rowIndex) => ({ ...row, rowIndex }))
       .filter((row) => row.source.toLowerCase().includes(searchFilter.toLowerCase())),
     [mappingRows, searchFilter]
   );
+  
+  const isAllSelected = visibleRows.length > 0 && visibleRows.every((row) => row.target.trim() !== '');
+  const isSomeSelected = visibleRows.some((row) => row.target.trim() !== '');
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isSomeSelected && !isAllSelected;
+    }
+  }, [isAllSelected, isSomeSelected]);
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      const visibleSources = new Set(visibleRows.map((row) => row.source));
+      setMappingRows((current) =>
+        current.map((row) => (visibleSources.has(row.source) ? { ...row, target: '' } : row))
+      );
+    } else {
+      const visibleSources = new Set(visibleRows.map((row) => row.source));
+      setMappingRows((current) =>
+        current.map((row) => (visibleSources.has(row.source) ? { ...row, target: row.source } : row))
+      );
+    }
+  };
+
   const targetOptions = useMemo(() => {
     const targets = new Set<string>();
     mappingRows.forEach((row) => {
@@ -234,11 +290,12 @@ const MappingPage = () => {
       return;
     }
 
-    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string }>>((acc, row) => {
+    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
       if (!row.target.trim()) return acc;
       acc[row.target.trim()] = {
         source: row.source,
-        transformCode: row.transformCode?.trim() || undefined
+        transformCode: row.transformCode?.trim() || undefined,
+        autoClean: row.autoClean || undefined
       };
       return acc;
     }, {});
@@ -253,7 +310,7 @@ const MappingPage = () => {
     setError('');
 
     try {
-      await api.patch(`/imports/${uploadId}/mapping`, { mapping: payload });
+      await api.post(`/imports/${uploadId}/mappings`, { mappings: Object.entries(payload).map(([target, {source, transformCode, autoClean}]) => ({sourceField: source, targetField: target, transformRule: JSON.stringify({ customCode: transformCode, autoClean }) })) });
       setSaveMessage('Mapping saved successfully.');
     } catch {
       setError('Unable to save mapping.');
@@ -268,11 +325,12 @@ const MappingPage = () => {
       return;
     }
 
-    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string }>>((acc, row) => {
+    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
       if (!row.target.trim()) return acc;
       acc[row.target.trim()] = {
         source: row.source,
-        transformCode: row.transformCode?.trim() || undefined
+        transformCode: row.transformCode?.trim() || undefined,
+        autoClean: row.autoClean || undefined
       };
       return acc;
     }, {});
@@ -287,19 +345,60 @@ const MappingPage = () => {
     setError('');
 
     try {
-      await api.patch(`/imports/${uploadId}/mapping`, { mapping: payload });
-      const response = await api.post(`/imports/${uploadId}/transform`);
-      const sandboxErrors = response.data.sandboxErrors ?? [];
-      setSaveMessage(
-        sandboxErrors.length
-          ? `Transformation complete with ${sandboxErrors.length} script warning(s). Preview is ready.`
-          : 'Transformation complete. Preview is ready.'
-      );
-      navigate(`/preview?uploadId=${uploadId}`);
+      await api.patch(`/imports/${uploadId}/mappings`, { mappings: Object.entries(payload).map(([target, {source, transformCode, autoClean}]) => ({sourceField: source, targetField: target, transformRule: JSON.stringify({ customCode: transformCode, autoClean }) })) });
+      const response = await api.post(`/imports/${uploadId}/run`);
+      setSaveMessage('Transformation started. Redirecting to import status...');
+      setTimeout(() => navigate(`/history`), 1500);
     } catch {
       setError('Unable to run transformation.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      setError('Please enter a template name.');
+      return;
+    }
+
+    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string }>>((acc, row) => {
+      if (!row.target.trim()) return acc;
+      acc[row.target.trim()] = {
+        source: row.source,
+        transformCode: row.transformCode?.trim() || undefined
+      };
+      return acc;
+    }, {});
+
+    if (!Object.keys(payload).length) {
+      setError('Map at least one selected column before saving a template.');
+      return;
+    }
+
+    try {
+      await api.post('/workflows', { name: templateName, definition: payload });
+      setSaveMessage('Template saved successfully.');
+      setTemplateName('');
+      const response = await api.get('/workflows');
+      setWorkflows(response.data.workflows ?? []);
+    } catch {
+      setError('Unable to save template.');
+    }
+  };
+
+  const loadTemplate = async (id: string) => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/workflows/${id}`);
+      const def = res.data.workflow?.definition;
+      if (def) {
+        const rows = buildMappingRows(def, sourceColumns);
+        setMappingRows(rows);
+        setSaveMessage('Template loaded.');
+      }
+    } catch {
+      setError('Unable to load template.');
     }
   };
 
@@ -377,6 +476,61 @@ const MappingPage = () => {
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Select a dataset to load available columns and enable mapping.</div>
       )}
 
+      {/* DATA HEALTH DASHBOARD */}
+      {!loading && !error && uploadId && dataProfile && (
+        <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.35em] text-emerald-400">Data Health Profile</p>
+              <p className="mt-2 text-slate-300">Computed sample statistics from the original raw file.</p>
+            </div>
+            {profiling && <div className="animate-pulse rounded-full bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">Profiling stream...</div>}
+          </div>
+          <div className="mt-6 overflow-x-auto">
+            <div className="flex gap-4 pb-4">
+              {Object.values(dataProfile).map((col: any) => (
+                <div key={col.name} className="min-w-[240px] flex-shrink-0 rounded-[24px] border border-white/10 bg-slate-950/70 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-white truncate pr-2">{col.name}</p>
+                    <span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">{col.typeGuess}</span>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-400">Valid</span>
+                        <span className="text-emerald-400">{(((col.totalCount - col.nullCount) / col.totalCount) * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full" 
+                          style={{ width: `${((col.totalCount - col.nullCount) / col.totalCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Length: {col.minLength} - {col.maxLength}</span>
+                      <span>Nulls: {col.nullCount}</span>
+                    </div>
+                    {col.distinctSamples.length > 0 && (
+                      <div className="pt-2 border-t border-white/5">
+                        <p className="text-xs text-slate-500 mb-2">Samples:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {col.distinctSamples.slice(0, 3).map((sample: string, i: number) => (
+                            <span key={i} className="inline-block rounded-md bg-slate-800/50 px-1.5 py-0.5 text-[10px] text-slate-300 truncate max-w-[80px]">
+                              {sample}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {!loading && !error && uploadId && (
         <div className="grid gap-6 xl:grid-cols-[1.45fr_0.75fr]">
           <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl">
@@ -400,11 +554,31 @@ const MappingPage = () => {
                   className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400"
                 />
               </div>
+              <div className="flex items-center gap-3">
+                <select
+                  onChange={(e) => loadTemplate(e.target.value)}
+                  className="rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
+                >
+                  <option value="">Load workflow template...</option>
+                  {workflows.map((wf) => (
+                    <option key={wf.id} value={wf.id}>{wf.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mt-5 overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/70">
               <div className="hidden grid-cols-[0.5fr_1.5fr_1.4fr_0.9fr] gap-4 border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.24em] text-slate-500 sm:grid">
-                <div>Select</div>
+                <div className="flex items-center justify-center">
+                  <input
+                    ref={selectAllCheckboxRef}
+                    type="checkbox"
+                    id="selectAll"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="h-5 w-5 cursor-pointer accent-cyan-400"
+                  />
+                </div>
                 <div>Source field</div>
                 <div>Target field</div>
                 <div>Action</div>
@@ -458,14 +632,31 @@ const MappingPage = () => {
                       </div>
 
                       {expanded && isSelected && (
-                        <div className="mt-4 sm:col-span-4">
-                          <textarea
-                            value={row.transformCode ?? ''}
-                            onChange={(event) => updateMappingRow(row.rowIndex, { transformCode: event.target.value })}
-                            placeholder="Optional: custom JS transform, e.g. return value.toUpperCase();"
-                            rows={3}
-                            className="w-full rounded-3xl border border-white/10 bg-slate-900/80 px-4 py-3 font-mono text-xs text-cyan-100 outline-none transition focus:border-cyan-400"
-                          />
+                        <div className="mt-4 sm:col-span-4 rounded-[20px] bg-slate-900/40 p-4 border border-white/5 space-y-4">
+                          <div>
+                            <label className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2 block">Smart Auto-Cleaning</label>
+                            <select
+                              value={row.autoClean || ''}
+                              onChange={(e) => updateMappingRow(row.rowIndex, { autoClean: e.target.value })}
+                              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-cyan-400"
+                            >
+                              <option value="">None (Raw Value)</option>
+                              <option value="trim">Strip Whitespace</option>
+                              <option value="uppercase">Uppercase</option>
+                              <option value="lowercase">Lowercase</option>
+                              <option value="extractNumbers">Extract Numbers Only</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2 block">Custom Javascript Override</label>
+                            <textarea
+                              value={row.transformCode ?? ''}
+                              onChange={(event) => updateMappingRow(row.rowIndex, { transformCode: event.target.value })}
+                              placeholder="Optional: return value.toUpperCase();"
+                              rows={3}
+                              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 font-mono text-xs text-cyan-100 outline-none transition focus:border-cyan-400"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -491,12 +682,25 @@ const MappingPage = () => {
               >
                 {saving ? 'Processing…' : 'Run transformation'}
               </button>
-              <button
-                onClick={() => navigate(`/preview?uploadId=${uploadId}`)}
-                className="rounded-full border border-white/10 bg-slate-900 px-5 py-3 text-sm text-slate-100 transition hover:bg-slate-800"
-              >
-                Go to preview
-              </button>
+              
+              <div className="flex-1" />
+              
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Template Name"
+                  className="rounded-full border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
+                />
+                <button
+                  onClick={saveAsTemplate}
+                  disabled={!templateName.trim() || !mappingRows.length}
+                  className="rounded-full border border-white/10 bg-emerald-500/10 px-5 py-3 text-sm text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save as Template
+                </button>
+              </div>
             </div>
             {saveMessage && <p className="mt-3 text-sm text-emerald-300">{saveMessage}</p>}
           </div>

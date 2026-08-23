@@ -1,47 +1,54 @@
 import { Router, Response } from 'express';
-import ValidationRecord from '../models/ValidationRecord';
 import { requireAuth, AuthedRequest } from '../middleware/authMiddleware';
+import { db } from '../storage/sqlite/database';
 
 const router = Router();
 router.use(requireAuth);
 
-router.get('/', async (req: AuthedRequest, res: Response) => {
-  const { uploadId } = req.query;
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 100));
-  const skip = (page - 1) * limit;
-
+router.get('/', (req: AuthedRequest, res: Response) => {
   try {
-    const owners = [req.user?.email, req.user?.id].filter(Boolean) as string[];
-    const query: any = owners.length ? { createdBy: { $in: owners } } : {};
-    if (typeof uploadId === 'string') {
-      query.uploadId = uploadId;
+    const uploadId = req.query.uploadId as string;
+    if (!uploadId) return res.status(400).json({ message: 'uploadId is required' });
+
+    const stmt = db.prepare(`SELECT * FROM validation_rules WHERE job_id = ?`);
+    const rules = stmt.all(uploadId);
+    
+    res.json({ rules });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch validation rules', error: String(error) });
+  }
+});
+
+router.post('/', (req: AuthedRequest, res: Response) => {
+  try {
+    const { uploadId, field, ruleType, severity } = req.body;
+    if (!uploadId || !field || !ruleType) {
+      return res.status(400).json({ message: 'uploadId, field, and ruleType are required' });
     }
 
-    const totalRecords = await ValidationRecord.countDocuments(query);
-    const totalErrors = await ValidationRecord.countDocuments({ ...query, severity: 'error' });
-    const records = await ValidationRecord.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const ruleId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    res.json({
-      summary: {
-        totalRecords,
-        totalErrors,
-        totalWarnings: totalRecords - totalErrors
-      },
-      records,
-      pagination: {
-        page,
-        limit,
-        totalRecords,
-        totalPages: Math.ceil(totalRecords / limit)
-      }
-    });
+    const stmt = db.prepare(`
+      INSERT INTO validation_rules (id, job_id, field, rule_type, severity)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(ruleId, uploadId, field, ruleType, severity || 'ERROR');
+
+    res.json({ message: 'Validation rule added', ruleId });
   } catch (error) {
-    res.status(500).json({ message: 'Could not load validation records', error: String(error) });
+    res.status(500).json({ message: 'Failed to add validation rule', error: String(error) });
+  }
+});
+
+router.delete('/:id', (req: AuthedRequest, res: Response) => {
+  try {
+    const ruleId = req.params.id;
+    const stmt = db.prepare(`DELETE FROM validation_rules WHERE id = ?`);
+    stmt.run(ruleId);
+    res.json({ message: 'Rule deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete validation rule', error: String(error) });
   }
 });
 

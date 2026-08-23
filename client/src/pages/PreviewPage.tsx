@@ -8,7 +8,7 @@ const PreviewPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const uploadId = searchParams.get('uploadId')?.trim() ?? '';
-  const [rows, setRows] = useState<Array<{ transformedData?: Record<string, unknown> }>>([]);
+  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,7 +24,7 @@ const PreviewPage = () => {
       }
 
       try {
-        const response = await api.get(`/transformed/${uploadId}`);
+        const response = await api.get(`/imports/${uploadId}/preview`);
         setRows(response.data.rows ?? []);
       } catch (err) {
         setError('Unable to load transformed preview rows for this upload.');
@@ -36,12 +36,12 @@ const PreviewPage = () => {
     void loadPreview();
   }, [searchParams]);
 
-  const columns = useMemo(() => (rows.length ? Object.keys(rows[0].transformedData ?? {}) : []), [rows]);
+  const columns = useMemo(() => (rows.length ? Object.keys(rows[0]) : []), [rows]);
 
   const gridTemplateColumns = columns.length > 1 ? `1.4fr repeat(${columns.length - 1}, 1fr)` : '1.4fr';
 
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const data = rows[index].transformedData ?? {};
+    const data = rows[index] ?? {};
     const rowStyle: React.CSSProperties = { ...style, display: 'grid', gridTemplateColumns, gap: 16 };
     return (
       <div style={rowStyle} className="min-w-full border-b border-white/10 px-4 text-sm text-slate-200 items-center">

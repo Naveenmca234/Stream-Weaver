@@ -1,533 +1,275 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import path from 'node:path';
-import fs, { createReadStream, unlink } from 'node:fs';
-import { Readable, Transform } from 'node:stream';
+import fs from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { parse } from 'csv-parse';
-import * as XLSX from 'xlsx';
-// stream-json does not ship TypeScript declarations for the streamer paths.
-// Silence the compiler here and treat as any at runtime.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 import { streamArray } from 'stream-json/streamers/StreamArray';
-import UploadRow from '../models/UploadRow';
-import MemorySample from '../models/MemorySample';
-import ImportJob from '../models/ImportJob';
-import ValidationRecord from '../models/ValidationRecord';
 import { requireAuth, AuthedRequest } from '../middleware/authMiddleware';
-import { BatchTransformStream, RowNumberingStream, ByteCounterStream } from '../streams/batchTransformStream';
+import { db } from '../storage/sqlite/database';
+import { ArtifactStore } from '../storage/filesystem/artifactStore';
+import * as XLSX from 'xlsx';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
 
-const BATCH_SIZE = Number(process.env.UPLOAD_BATCH_SIZE ?? '5000');
-const PREVIEW_LIMIT = 1000;
-const PROGRESS_THROTTLE_MS = Number(process.env.PROGRESS_THROTTLE_MS ?? '300');
-
-type NumberedRecord = { rowNumber: number; data: Record<string, unknown> };
-
 const SUPPORTED_UPLOAD_EXTENSIONS = new Set(['.csv', '.json', '.xls', '.xlsx', '.xlsm']);
-const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
-  'text/csv',
-  'application/csv',
-  'application/json',
-  'application/ld+json',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel.sheet.macroenabled.12'
-]);
 
-const isSupportedUploadFile = (fileName: string, mimeType?: string) => {
+const isSupportedUploadFile = (fileName: string) => {
   const extension = path.extname(fileName).toLowerCase();
-  if (SUPPORTED_UPLOAD_EXTENSIONS.has(extension)) return true;
-  return !!mimeType && SUPPORTED_UPLOAD_MIME_TYPES.has(mimeType.toLowerCase());
+  return SUPPORTED_UPLOAD_EXTENSIONS.has(extension);
 };
 
-// pending emit maps for coalescing progress events per uploadId
-const pendingEmitTimers = new Map<string, NodeJS.Timeout>();
-const pendingEmitPayloads = new Map<string, any>();
+router.post('/finalize', requireAuth, async (req: AuthedRequest, res: Response) => {
+  const { tusFileId, fileName, clientUploadId } = req.body;
+  if (!tusFileId || !fileName) return res.status(400).json({ message: 'Missing file details' });
 
-// Row write queue controls to bound concurrent bulkWrite activity
-const rowWriteBuffers = new Map<string, any[]>();
-const rowWriteTimers = new Map<string, NodeJS.Timeout>();
-const ROW_WRITE_CONCURRENCY = Number(process.env.ROW_WRITE_CONCURRENCY ?? '3');
-let globalActiveRowWrites = 0;
-
-async function processRowBuffer(uploadId: string) {
-  const buf = rowWriteBuffers.get(uploadId) ?? [];
-  if (!buf.length) return;
-  if (globalActiveRowWrites >= ROW_WRITE_CONCURRENCY) return;
-
-  // take up to BATCH_SIZE ops
-  const ops = buf.splice(0, BATCH_SIZE);
-  rowWriteBuffers.set(uploadId, buf);
-  globalActiveRowWrites += 1;
+  const io = req.app.get('io');
+  const tempFilePath = path.resolve(__dirname, `../../../../storage/uploads/${tusFileId}`);
+  const extension = path.extname(fileName).toLowerCase();
+  let fileSize = 0;
   try {
-    await UploadRow.bulkWrite(ops, { ordered: false });
-  } catch (e) {
-    // swallow - best-effort
-  } finally {
-    globalActiveRowWrites -= 1;
+    const stat = await fs.promises.stat(tempFilePath);
+    fileSize = stat.size;
+  } catch {
+    return res.status(404).json({ message: 'Tus file not found' });
   }
 
-  // schedule next batch for this upload
-  if ((rowWriteBuffers.get(uploadId) ?? []).length > 0) {
-    // let other active writes proceed then continue
-    setImmediate(() => void processRowBuffer(uploadId));
-  }
-}
+  const userId = req.user?.id || 'anonymous';
 
-function scheduleRowWrites(uploadId: string, ops: any[]) {
-  const buf = rowWriteBuffers.get(uploadId) ?? [];
-  buf.push(...ops);
-  rowWriteBuffers.set(uploadId, buf);
-  if (buf.length >= BATCH_SIZE) {
-    void processRowBuffer(uploadId);
-    return;
-  }
-  if (!rowWriteTimers.has(uploadId)) {
-    const t = setTimeout(() => { void processRowBuffer(uploadId); rowWriteTimers.delete(uploadId); }, 500);
-    rowWriteTimers.set(uploadId, t);
-  }
-}
-
-async function flushRowWrites(uploadId: string) {
-  // flush all buffered ops and wait until active writes finish
-  while ((rowWriteBuffers.get(uploadId) ?? []).length > 0) {
-    await processRowBuffer(uploadId);
-    // small delay to allow writes to start
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  // wait for any active global writes to finish
-  let attempts = 0;
-  while (globalActiveRowWrites > 0 && attempts < 100) {
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise((r) => setTimeout(r, 100));
-    attempts += 1;
-  }
-}
-
-const validateRow = (row: Record<string, unknown>, uploadId: string, rowNumber: number) => {
-  const records: any[] = [];
-  const keys = row && typeof row === 'object' ? Object.keys(row) : [];
-
-  if (!keys.length) {
-    records.push({ uploadId, rowNumber, field: 'row', message: 'Row contains no fields', severity: 'error', data: row });
-    return records;
+  if (!isSupportedUploadFile(fileName)) {
+    fs.unlinkSync(tempFilePath);
+    return res.status(400).json({ message: 'Unsupported file type.' });
   }
 
-  for (const key of keys) {
-    const value = row[key];
-    if (value === '' || value === null || value === undefined) {
-      records.push({ uploadId, rowNumber, field: key, message: `Field ${key} is empty`, severity: 'warning', data: row });
+  const jobId = (typeof clientUploadId === 'string' && clientUploadId.trim())
+    || `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  // Create job in SQLite
+  const stmtInsert = db.prepare(`
+    INSERT INTO jobs (id, user_id, status, original_filename, file_size) 
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  stmtInsert.run(jobId, userId, 'uploading', fileName, fileSize);
+
+  const finalUploadPath = ArtifactStore.getUploadPath(jobId, `source${extension}`);
+
+  try {
+    // 1. Move temp file to artifact store
+    await fs.promises.rename(tempFilePath, finalUploadPath);
+    // Remove the .info file left by Tus
+    await fs.promises.unlink(`${tempFilePath}.info`).catch(() => {});
+
+    // 2. Stream to count rows and extract preview
+    let totalRows = 0;
+    const preview: any[] = [];
+    const columns = new Set<string>();
+
+    if (extension === '.csv') {
+      const parser = parse({ columns: true, skip_empty_lines: true });
+      const readStream = createReadStream(finalUploadPath);
+      
+      for await (const record of readStream.pipe(parser)) {
+        totalRows++;
+        if (preview.length < 100) preview.push(record);
+        if (totalRows <= 100) {
+          Object.keys(record).forEach(k => columns.add(k));
+        }
+      }
+    } else if (extension === '.json') {
+       const readStream = createReadStream(finalUploadPath);
+       const parser = streamArray();
+       
+       try {
+         for await (const { value } of readStream.pipe(parser)) {
+           totalRows++;
+           if (preview.length < 100) preview.push(value);
+           if (totalRows <= 100 && typeof value === 'object' && value !== null) {
+             Object.keys(value).forEach(k => columns.add(k));
+           }
+         }
+       } catch (err) {
+         console.warn('JSON stream parsing failed. File must be a valid JSON array.', err);
+         throw new Error('Invalid JSON format. Please upload a valid JSON array.');
+       }
+    } else if (['.xls', '.xlsx'].includes(extension)) {
+       const workbook = XLSX.readFile(finalUploadPath);
+       const sheet = workbook.Sheets[workbook.SheetNames[0]];
+       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+       totalRows = rows.length;
+       rows.slice(0, 100).forEach((record: any) => {
+         preview.push(record);
+         Object.keys(record).forEach(k => columns.add(k));
+       });
     }
-  }
 
-  if (typeof row.email === 'string' && !row.email.includes('@')) {
-    records.push({ uploadId, rowNumber, field: 'email', message: 'Email value does not appear valid', severity: 'warning', data: row });
-  }
+    // Update job status in SQLite
+    const stmtUpdate = db.prepare(`
+      UPDATE jobs 
+      SET status = 'uploaded', row_count = ?
+      WHERE id = ?
+    `);
+    stmtUpdate.run(totalRows, jobId);
 
-  if ((row.created_at || row.createdAt) && Number.isNaN(Date.parse(String(row.created_at ?? row.createdAt)))) {
-    records.push({ uploadId, rowNumber, field: 'created_at', message: 'Date field is invalid', severity: 'warning', data: row });
-  }
+    // Initial mapping entries based on columns
+    const stmtMapping = db.prepare(`
+      INSERT INTO mappings (id, job_id, source_field, target_field)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const insertMappings = db.transaction((cols: string[]) => {
+      for (const col of cols) {
+        stmtMapping.run(`${jobId}-${col}`, jobId, col, col); // Default 1:1 map
+      }
+    });
+    insertMappings(Array.from(columns));
 
-  if (!row.name && !row.fullName && !row.firstName) {
-    records.push({ uploadId, rowNumber, field: 'name', message: 'Name field is missing', severity: 'warning', data: row });
-  }
-
-  return records;
-};
-
-// Validation write buffering to reduce blocking I/O during uploads
-const validationBuffers = new Map<string, any[]>();
-const validationTimers = new Map<string, NodeJS.Timeout>();
-
-async function flushValidationBuffer(uploadId: string) {
-  const buf = validationBuffers.get(uploadId) ?? [];
-  if (!buf.length) {
-    const t = validationTimers.get(uploadId);
-    if (t) clearTimeout(t);
-    validationTimers.delete(uploadId);
-    return;
-  }
-  validationBuffers.set(uploadId, []);
-  const t = validationTimers.get(uploadId);
-  if (t) {
-    clearTimeout(t);
-    validationTimers.delete(uploadId);
-  }
-  try {
-    await ValidationRecord.insertMany(buf, { ordered: false });
-  } catch (e) {
-    // best-effort
-  }
-}
-
-function scheduleValidationDocs(uploadId: string, docs: any[]) {
-  if (!docs || !docs.length) return;
-  const buf = validationBuffers.get(uploadId) ?? [];
-  buf.push(...docs);
-  validationBuffers.set(uploadId, buf);
-  if (buf.length >= 500) {
-    void flushValidationBuffer(uploadId);
-    return;
-  }
-  if (!validationTimers.has(uploadId)) {
-    const timer = setTimeout(() => flushValidationBuffer(uploadId), 2000);
-    validationTimers.set(uploadId, timer);
-  }
-}
-
-/** Bulk-write a batch of parsed rows; validation records are buffered and written asynchronously. */
-const writeBatch = async (batch: NumberedRecord[], fileName: string, uploadId: string, owner?: string) => {
-  const rowOps = batch.map(({ rowNumber, data }) => ({
-    insertOne: { document: { uploadId, fileName, rowNumber, data, createdBy: owner } }
-  }));
-
-  const validationDocs = batch.flatMap(({ rowNumber, data }) =>
-    validateRow(data, uploadId, rowNumber).map((doc) => ({ ...doc, createdBy: owner }))
-  );
-
-  // schedule row writes to background worker queue to bound concurrency and reduce latency
-  scheduleRowWrites(uploadId, rowOps);
-  if (validationDocs.length) scheduleValidationDocs(uploadId, validationDocs);
-
-  // lightweight backpressure: pause briefly if heapUsed exceeds configured limit
-  try {
-    const limitMB = Number(process.env.MEMORY_AUDIT_LIMIT_MB ?? '150');
-    const maxHeap = limitMB * 1024 * 1024;
-    let attempts = 0;
-    while (process.memoryUsage().heapUsed > maxHeap && attempts < 5) {
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, 200));
-      attempts += 1;
+    if (io) {
+      io.to(jobId).emit('import-progress', { 
+        uploadId: jobId, progress: 100, stage: 'upload_complete', rowsProcessed: totalRows 
+      });
     }
-  } catch (e) {
-    // ignore
-  }
 
-  return { failedRows: validationDocs.filter((d) => d.severity === 'error').length };
-};
+    res.json({
+      message: 'Upload successful',
+      jobId,
+      fileName,
+      totalRows,
+      columns: Array.from(columns),
+      preview
+    });
+
+  } catch (error) {
+    console.error('Upload processing error:', error);
+    db.prepare(`UPDATE jobs SET status = 'failed' WHERE id = ?`).run(jobId);
+    try {
+      await fs.promises.unlink(finalUploadPath);
+    } catch (cleanupError) {}
+    res.status(500).json({ message: 'Upload processing failed', error: error instanceof Error ? error.message : String(error) });
+  }
+});
 
 router.post('/', requireAuth, upload.single('file'), async (req: AuthedRequest, res: Response) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
   const io = req.app.get('io');
-  const filePath = path.resolve(req.file.path);
+  const tempFilePath = path.resolve(req.file.path);
   const extension = path.extname(req.file.originalname).toLowerCase();
   const fileName = req.file.originalname;
   const fileSize = req.file.size;
+  const userId = req.user?.id || 'anonymous';
 
-  if (!isSupportedUploadFile(fileName, req.file.mimetype)) {
-    await unlink(filePath, () => undefined);
-    return res.status(400).json({ message: 'Unsupported file type. Supported types: CSV, JSON, XLS, XLSX, XLSM.' });
+  if (!isSupportedUploadFile(fileName)) {
+    fs.unlinkSync(tempFilePath);
+    return res.status(400).json({ message: 'Unsupported file type.' });
   }
 
-  // The client generates this id and joins the matching Socket.IO room
-  // *before* the upload starts, so progress can be streamed back live.
-  const uploadId = (typeof req.body.clientUploadId === 'string' && req.body.clientUploadId.trim())
-    || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const owner = req.user?.email || req.user?.id;
-  const startedAt = new Date();
+  const jobId = (typeof req.body.clientUploadId === 'string' && req.body.clientUploadId.trim())
+    || `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-  const job = await ImportJob.create({
-    uploadId,
-    fileName,
-    status: 'processing',
-    totalRows: 0,
-    failedRows: 0,
-    fileSize,
-    columns: [],
-    selectedColumns: [],
-    createdBy: owner,
-    startedAt,
-    importedRows: 0
-  });
+  // Create job in SQLite
+  const stmtInsert = db.prepare(`
+    INSERT INTO jobs (id, user_id, status, original_filename, file_size) 
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  stmtInsert.run(jobId, userId, 'uploading', fileName, fileSize);
 
-  let totalRows = 0;
-  let failedRows = 0;
-  const firstRecords: Record<string, unknown>[] = [];
-  const detectedColumns = new Set<string>();
-  let lastEmit = 0;
-
-  const emitProgress = (bytesRead: number, force = false) => {
-      if (!io) return;
-      const now = Date.now();
-
-      const elapsedSeconds = Math.max((now - startedAt.getTime()) / 1000, 0.001);
-      const progress = fileSize > 0 ? Math.min(100, Math.round((bytesRead / fileSize) * 100)) : 0;
-      const mu = process.memoryUsage();
-      const memoryUsage = { rss: mu.rss, heapTotal: mu.heapTotal, heapUsed: mu.heapUsed };
-
-      // coalesce/ debounce emits per uploadId: store latest payload and schedule a trailing emit
-      const payload = {
-        uploadId,
-        stage: 'upload',
-        progress,
-        fileSize,
-        totalRows,
-        rowsProcessed: totalRows,
-        rowsFailed: failedRows,
-        rowsPerSecond: Math.round(totalRows / elapsedSeconds),
-        durationMs: Math.round(elapsedSeconds * 1000),
-        memoryUsage,
-        batchSize: BATCH_SIZE
-      };
-
-      // store latest payload
-      pendingEmitPayloads.set(uploadId, payload);
-
-      if (force) {
-        // flush immediately
-        const p = pendingEmitPayloads.get(uploadId);
-        if (p) io.to(uploadId).emit('import-progress', p);
-        pendingEmitPayloads.delete(uploadId);
-        const t = pendingEmitTimers.get(uploadId);
-        if (t) { clearTimeout(t); pendingEmitTimers.delete(uploadId); }
-        lastEmit = Date.now();
-        return;
-      }
-
-      // schedule trailing emit if not already scheduled
-      if (!pendingEmitTimers.has(uploadId)) {
-        const timer = setTimeout(() => {
-          const p = pendingEmitPayloads.get(uploadId);
-          if (p) io.to(uploadId).emit('import-progress', p);
-          pendingEmitPayloads.delete(uploadId);
-          pendingEmitTimers.delete(uploadId);
-          lastEmit = Date.now();
-        }, PROGRESS_THROTTLE_MS);
-        pendingEmitTimers.set(uploadId, timer);
-      }
-    try {
-      const mu = process.memoryUsage();
-      // schedule a buffered memory sample write to avoid many small DB writes
-      scheduleMemorySample(uploadId, {
-        uploadId,
-        ts: new Date(),
-        rss: mu.rss,
-        heapTotal: mu.heapTotal,
-        heapUsed: mu.heapUsed,
-        external: mu.external ?? 0,
-        arrayBuffers: (mu as any).arrayBuffers ?? 0
-      });
-    } catch (err) {
-      // ignore sampling errors
-    }
-  };
-
-// In-memory buffering for memory samples per upload to reduce DB write churn
-const memorySampleBuffers = new Map<string, any[]>();
-const memorySampleTimers = new Map<string, NodeJS.Timeout>();
-
-async function flushMemorySamples(uploadId: string) {
-  const buf = memorySampleBuffers.get(uploadId) ?? [];
-  if (!buf.length) {
-    const t = memorySampleTimers.get(uploadId);
-    if (t) clearTimeout(t);
-    memorySampleTimers.delete(uploadId);
-    return;
-  }
-  memorySampleBuffers.set(uploadId, []);
-  const t = memorySampleTimers.get(uploadId);
-  if (t) {
-    clearTimeout(t);
-    memorySampleTimers.delete(uploadId);
-  }
-  try {
-    await MemorySample.insertMany(buf, { ordered: false });
-  } catch (e) {
-    // swallow errors; sampling is best-effort
-  }
-}
-
-function scheduleMemorySample(uploadId: string, sample: any) {
-  const buf = memorySampleBuffers.get(uploadId) ?? [];
-  buf.push(sample);
-  memorySampleBuffers.set(uploadId, buf);
-  if (buf.length >= 10) {
-    void flushMemorySamples(uploadId);
-    return;
-  }
-  if (!memorySampleTimers.has(uploadId)) {
-    const timer = setTimeout(() => flushMemorySamples(uploadId), 1000);
-    memorySampleTimers.set(uploadId, timer);
-  }
-}
+  const finalUploadPath = ArtifactStore.getUploadPath(jobId, `source${extension}`);
 
   try {
-    let source: NodeJS.ReadableStream;
+    // 1. Move temp file to artifact store
+    await fs.promises.rename(tempFilePath, finalUploadPath);
+
+    // 2. Stream to count rows and extract preview
+    let totalRows = 0;
+    const preview: any[] = [];
+    const columns = new Set<string>();
 
     if (extension === '.csv') {
-      const byteCounter = new ByteCounterStream((bytesRead) => emitProgress(bytesRead));
-      source = createReadStream(filePath)
-        .pipe(byteCounter)
-        .pipe(parse({ columns: true, skip_empty_lines: true }));
+      const parser = parse({ columns: true, skip_empty_lines: true });
+      const readStream = createReadStream(finalUploadPath);
+      
+      for await (const record of readStream.pipe(parser)) {
+        totalRows++;
+        if (preview.length < 100) preview.push(record);
+        if (totalRows <= 100) {
+          Object.keys(record).forEach(k => columns.add(k));
+        }
+      }
     } else if (extension === '.json') {
-      // Detect whether the JSON file is an array (streamable by StreamArray)
-      // or a top-level object. StreamArray requires a top-level array and
-      // will emit an error otherwise — detect first non-whitespace char and
-      // choose the appropriate parsing strategy to avoid an uncaught error.
-      const headBuf = Buffer.alloc(1024);
-      let firstChar = '';
-      try {
-        const fh = await fs.promises.open(filePath, 'r');
-        const { bytesRead } = await fh.read(headBuf, 0, headBuf.length, 0);
-        await fh.close();
-        const headStr = headBuf.slice(0, bytesRead).toString('utf8');
-        const m = headStr.match(/\S/);
-        firstChar = m ? m[0] : '';
-      } catch (err) {
-        firstChar = '';
-      }
+       // Simple fallback for JSON (assuming streamable JSON array for now)
+       const readStream = createReadStream(finalUploadPath);
+       const parser = streamArray();
+       
+       try {
+         for await (const { value } of readStream.pipe(parser)) {
+           totalRows++;
+           if (preview.length < 100) preview.push(value);
+           if (totalRows <= 100 && typeof value === 'object' && value !== null) {
+             Object.keys(value).forEach(k => columns.add(k));
+           }
+         }
+       } catch (err) {
+         console.warn('JSON stream parsing failed. File must be a valid JSON array.', err);
+         throw new Error('Invalid JSON format. Please upload a valid JSON array.');
+       }
+    } else if (['.xls', '.xlsx'].includes(extension)) {
+       const workbook = XLSX.readFile(finalUploadPath);
+       const sheet = workbook.Sheets[workbook.SheetNames[0]];
+       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+       totalRows = rows.length;
+       rows.slice(0, 100).forEach((record: any) => {
+         preview.push(record);
+         Object.keys(record).forEach(k => columns.add(k));
+       });
+    }
 
-      if (firstChar === '[') {
-        // Streaming JSON array using stream-json
-        const jsonParser = streamArray();
-        const valueTransform = new Transform({
-          objectMode: true,
-          transform(chunk, _encoding, callback) {
-            callback(null, (chunk as any).value);
-          }
-        });
+    // Update job status in SQLite
+    const stmtUpdate = db.prepare(`
+      UPDATE jobs 
+      SET status = 'uploaded', row_count = ?
+      WHERE id = ?
+    `);
+    stmtUpdate.run(totalRows, jobId);
 
-        source = createReadStream(filePath)
-          .pipe(new ByteCounterStream((bytesRead) => emitProgress(bytesRead)))
-          .pipe(jsonParser)
-          .pipe(valueTransform);
-      } else if (firstChar === '{') {
-        // Top-level object: emit as single-item array
-        // This is not ideal for streaming but handles the case safely
-        const byteCounter = new ByteCounterStream((bytesRead) => emitProgress(bytesRead));
-        const readStream = createReadStream(filePath);
-        
-        // First, count bytes
-        readStream.pipe(byteCounter);
-        
-        // Read the full object and emit as a single item
-        const chunks: Buffer[] = [];
-        for await (const chunk of readStream) {
-          chunks.push(chunk as Buffer);
-        }
-        
-        const data = Buffer.concat(chunks).toString('utf8');
-        let parsed: any;
-        try {
-          parsed = JSON.parse(data);
-        } catch (err) {
-          throw new Error(`Invalid JSON: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        
-        // Treat top-level object as single record
-        emitProgress(fileSize, true);
-        source = Readable.from([parsed]);
-      } else {
-        // Unknown format - attempt to parse as JSON
-        // This handles newline-delimited JSON (NDJSON) inefficiently
-        // but allows the server to process small JSON files safely
-        const byteCounter = new ByteCounterStream((bytesRead) => emitProgress(bytesRead));
-        const readStream = createReadStream(filePath);
-        readStream.pipe(byteCounter);
-        
-        const chunks: Buffer[] = [];
-        for await (const chunk of readStream) {
-          chunks.push(chunk as Buffer);
-        }
-        
-        const data = Buffer.concat(chunks).toString('utf8');
-        let parsed: any;
-        try {
-          parsed = JSON.parse(data);
-        } catch (err) {
-          throw new Error(`Invalid JSON: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        
-        const rows = Array.isArray(parsed) ? parsed : [parsed];
-        emitProgress(fileSize, true);
-        source = Readable.from(rows);
+    // Initial mapping entries based on columns
+    const stmtMapping = db.prepare(`
+      INSERT INTO mappings (id, job_id, source_field, target_field)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const insertMappings = db.transaction((cols: string[]) => {
+      for (const col of cols) {
+        stmtMapping.run(`${jobId}-${col}`, jobId, col, col); // Default 1:1 map
       }
-    } else if (['.xls', '.xlsx', '.xlsm'].includes(extension)) {
-      const workbook = XLSX.readFile(filePath);
-      const firstSheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[firstSheetName];
-      if (!sheet) {
-        throw new Error('Excel file has no readable sheets');
-      }
+    });
+    insertMappings(Array.from(columns));
 
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-        defval: '',
-        raw: false,
-        blankrows: false
+    if (io) {
+      io.to(jobId).emit('import-progress', { 
+        uploadId: jobId, progress: 100, stage: 'upload_complete', rowsProcessed: totalRows 
       });
-
-      emitProgress(fileSize, true);
-      source = Readable.from(rows);
-    } else {
-      await ImportJob.findByIdAndUpdate(job._id, { status: 'failed', finishedAt: new Date() });
-      return res.status(400).json({ message: 'Unsupported file type. Supported types: CSV, JSON, XLS, XLSX, XLSM.' });
     }
 
-    const numbered = source.pipe(new RowNumberingStream());
-    const batched = numbered.pipe(new BatchTransformStream(BATCH_SIZE));
-
-    for await (const batch of batched as AsyncIterable<NumberedRecord[]>) {
-      const result = await writeBatch(batch, fileName, uploadId, owner);
-      totalRows += batch.length;
-      failedRows += result.failedRows;
-      if (firstRecords.length < 1000) firstRecords.push(...batch.slice(0, 1000 - firstRecords.length).map((r) => r.data));
-      batch.forEach(({ data }) => Object.keys(data).forEach((key) => detectedColumns.add(key)));
-      // Progress updated by ByteCounterStream; avoid forcing 100% inside loop
-    }
-
-    // ensure final progress is emitted
-    emitProgress(fileSize, true);
-
-    const columns = Array.from(detectedColumns);
-
-    // wait for any buffered row writes and validation writes to flush before marking completed
-    try {
-      await flushRowWrites(uploadId);
-      await flushValidationBuffer(uploadId);
-    } catch (e) {
-      // ignore
-    }
-
-    await ImportJob.findByIdAndUpdate(job._id, {
-      status: 'completed',
+    res.json({
+      message: 'Upload successful',
+      jobId,
+      fileName,
       totalRows,
-      failedRows,
-      fileSize,
-      columns,
-      selectedColumns: columns,
-      finishedAt: new Date()
+      columns: Array.from(columns),
+      preview
     });
 
-    // flush any buffered samples and compute memory audit summary
-    try {
-      await flushMemorySamples(uploadId);
-      const samples = await MemorySample.find({ uploadId }).sort({ ts: 1 }).lean();
-      if (samples && samples.length) {
-        const peakRss = Math.max(...samples.map((s: any) => s.rss));
-        const peakHeap = Math.max(...samples.map((s: any) => s.heapUsed));
-        const avgRss = Math.round(samples.reduce((a: number, b: any) => a + b.rss, 0) / samples.length);
-        const avgHeap = Math.round(samples.reduce((a: number, b: any) => a + b.heapUsed, 0) / samples.length);
-
-        await ImportJob.findByIdAndUpdate(job._id, {
-          memoryAudit: { peakRss, peakHeap, avgRss, avgHeap, samples: samples.length, savedAt: new Date() }
-        });
-      }
-    } catch (err) {
-      // non-blocking
-    }
-
-    res.json({ message: 'File processed', fileName, total: totalRows, totalRows, failedRows, preview: firstRecords, columns, uploadId });
   } catch (error) {
-    await ImportJob.findByIdAndUpdate(job._id, { status: 'failed', totalRows, failedRows, finishedAt: new Date() });
-    if (io) io.to(uploadId).emit('import-progress', { uploadId, progress: 100, rowsProcessed: totalRows, rowsFailed: failedRows, error: String(error) });
-    res.status(500).json({ message: 'Upload processing failed', error: String(error) });
-  } finally {
-    unlink(filePath, () => undefined);
+    console.error('Upload processing error:', error);
+    db.prepare(`UPDATE jobs SET status = 'failed' WHERE id = ?`).run(jobId);
+    try {
+      await fs.promises.unlink(finalUploadPath);
+    } catch (cleanupError) {
+      // Ignore if file doesn't exist or already removed
+    }
+    res.status(500).json({ message: 'Upload processing failed', error: error instanceof Error ? error.message : String(error) });
   }
 });
 
