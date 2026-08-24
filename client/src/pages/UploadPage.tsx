@@ -5,6 +5,7 @@ import api from '../services/api';
 import uploadFile from '../services/uploadService';
 import { joinRoom, onImportProgress } from '../services/socket';
 import toast from 'react-hot-toast';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 const UploadPage = () => {
   const navigate = useNavigate();
@@ -106,7 +107,7 @@ const UploadPage = () => {
       setUploadStatus('success');
       toast.success('Upload complete! Dataset is ready for profiling.');
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Upload failed. Please try again.';
+      const errorMsg = extractErrorMessage(err, 'Upload failed. Please try again.');
       console.error('Upload page error:', err);
       setErrorMessage(errorMsg);
       setUploadStatus('error');
@@ -206,7 +207,11 @@ const UploadPage = () => {
                     <p className="mt-2 text-xl font-semibold text-white">
                       {uploadStatus === 'uploading' ? 'Processing' : uploadStatus === 'success' ? 'Ready' : uploadStatus === 'error' ? 'Failed' : 'Waiting'}
                     </p>
-                    {errorMessage && <p className="text-sm text-rose-400 mt-1">{errorMessage}</p>}
+                    {uploadStatus === 'error' && errorMessage && (
+                      <div className="mt-4">
+                        <ErrorAlert message={errorMessage} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

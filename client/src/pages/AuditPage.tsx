@@ -1,17 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import MemoryAudit from '../components/MemoryAudit';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 const AuditPage = () => {
   const [searchParams] = useSearchParams();
   const uploadId = searchParams.get('uploadId') ?? '';
   const [job, setJob] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchJob = useCallback(async () => {
+    if (!uploadId) return;
+    try {
+      setError(null);
+      const r = await api.get(`/imports/${uploadId}`);
+      setJob(r.data.job);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Unable to load audit logs.'));
+    }
+  }, [uploadId]);
 
   useEffect(() => {
-    if (!uploadId) return;
-    api.get(`/imports/${uploadId}`).then((r) => setJob(r.data.job)).catch(() => setJob(null));
-  }, [uploadId]);
+    fetchJob();
+  }, [fetchJob]);
 
   return (
     <div className="space-y-6">
@@ -19,6 +31,8 @@ const AuditPage = () => {
         <h2 className="text-xl font-semibold">Memory audit</h2>
         <p className="text-sm text-slate-400">Audit memory usage for upload <strong>{uploadId}</strong></p>
       </section>
+
+      {error && <ErrorAlert message={error} onRetry={fetchJob} />}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>

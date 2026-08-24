@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 interface DatasetProfile {
   totalRows: number;
@@ -51,7 +52,7 @@ const ValidationPage = () => {
       setRecords([]);
       setSummary({ totalRecords: 0, totalErrors: 0, totalWarnings: 0 });
       setPagination({ page, limit, totalRecords: 0, totalPages: 0 });
-      setError('Unable to load validation records.');
+      setError(extractErrorMessage(err, 'Unable to load validation records.'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ const ValidationPage = () => {
     } catch (err) {
       setDatasetName('');
       setProfile(null);
-      if (!error) setError('Unable to load dataset statistics for this upload.');
+      if (!error) setError(extractErrorMessage(err, 'Unable to load dataset statistics for this upload.'));
     }
   };
 
@@ -156,7 +157,7 @@ const ValidationPage = () => {
       </div>
 
       {loading && <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Loading validations...</div>}
-      {error && <div className="rounded-[32px] border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">{error}</div>}
+      {error && <ErrorAlert message={error} onRetry={() => window.location.reload()} />}
 
       {!loading && !error && profile && (
         <div className="grid gap-6 lg:grid-cols-3">

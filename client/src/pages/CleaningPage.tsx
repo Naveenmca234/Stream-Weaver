@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 type MissingColumnSummary = {
   name: string;
@@ -99,7 +100,7 @@ const CleaningPage = () => {
           setError('No missing data summary is available for this upload.');
         }
       } catch (err) {
-        setError('Unable to load missing data summary. Please verify the upload ID and try again.');
+        setError(extractErrorMessage(err, 'Unable to load missing data summary.'));
       } finally {
         setLoading(false);
       }
@@ -155,7 +156,8 @@ const CleaningPage = () => {
       setColumns(refreshed);
       setSummary(refreshedSummary);
     } catch (err) {
-      setError('Unable to apply the missing data strategy. Please try again.');
+      setError(extractErrorMessage(err, 'Failed to apply cleaning strategies.'));
+      setMessage('');
     } finally {
       setApplying('');
     }
@@ -248,12 +250,7 @@ const CleaningPage = () => {
         </div>
       )}
       
-      {error && (
-        <div className="flex items-center gap-3 rounded-[24px] border border-rose-500/20 bg-rose-500/10 p-6 text-rose-300 shadow-lg">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/20 text-xl shadow-inner">⚠️</div>
-          <p className="font-medium">{error}</p>
-        </div>
-      )}
+      {error && <ErrorAlert message={error} onRetry={() => window.location.reload()} />}
       {message && (
         <div className="flex items-center gap-3 rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-emerald-300 shadow-lg">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xl shadow-inner">✨</div>

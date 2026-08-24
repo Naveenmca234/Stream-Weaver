@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm' }: any) => {
   if (!isOpen) return null;
@@ -49,7 +50,7 @@ const HistoryPage = () => {
         const response = await api.get('/imports');
         setJobs(response.data.jobs ?? []);
       } catch (err) {
-        setError('Unable to load import history.');
+        setError(extractErrorMessage(err, 'Unable to load import history.'));
       } finally {
         setLoading(false);
       }
@@ -99,12 +100,12 @@ const HistoryPage = () => {
       toast.success('Dataset deleted successfully');
       setJobs((prev) => prev.filter((j) => j.uploadId !== job.uploadId));
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to delete dataset';
+      const msg = extractErrorMessage(err, 'Failed to delete dataset');
       if (msg === 'Import not found' && !deleteModal.force) {
         setDeleteModal({ isOpen: true, job, force: true });
         return;
       }
-      toast.error(`${msg}`);
+      toast.error(msg);
     } finally {
       setDeleteModal({ isOpen: false, job: null, force: false });
     }
@@ -152,7 +153,7 @@ const HistoryPage = () => {
           <p className="mt-4 text-lg font-medium text-slate-300">Loading history...</p>
         </div>
       )}
-      {error && <div className="rounded-[32px] border border-rose-500/20 bg-rose-500/5 p-8 text-rose-300 shadow-lg text-center backdrop-blur-xl">⚠️ {error}</div>}
+      {error && <ErrorAlert message={error} onRetry={() => window.location.reload()} />}
 
       {!loading && !error && jobs.length === 0 && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-16 text-center shadow-2xl backdrop-blur-xl">

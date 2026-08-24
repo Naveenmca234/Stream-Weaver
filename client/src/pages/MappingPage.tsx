@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import toast from 'react-hot-toast';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 
 type MappingRow = {
   source: string;
@@ -195,10 +197,8 @@ const MappingPage = () => {
         const rows = buildMappingRows(mappingFromJob, chosenColumns);
         setMappingRows(rows);
       } catch (err) {
-        setPreview([]);
-        setSourceColumns([]);
-        setMappingRows([]);
-        setError('Unable to load import mapping data.');
+        console.error('Failed to fetch mapping dependencies:', err);
+        setError(extractErrorMessage(err, 'Unable to load import mapping data.'));
       } finally {
         setLoading(false);
       }
@@ -326,8 +326,9 @@ const MappingPage = () => {
     try {
       await api.post(`/imports/${uploadId}/mappings`, { mappings: Object.entries(payload).map(([target, {source, transformCode, autoClean}]) => ({sourceField: source, targetField: target, transformRule: JSON.stringify({ customCode: transformCode, autoClean }) })) });
       setSaveMessage('Mapping saved successfully.');
-    } catch {
-      setError('Unable to save mapping.');
+    } catch (err: any) {
+      setError(extractErrorMessage(err, 'Unable to save mapping.'));
+      toast.error('Mapping save failed.');
     } finally {
       setSaving(false);
     }
@@ -374,8 +375,9 @@ const MappingPage = () => {
       const response = await api.post(`/imports/${uploadId}/run`);
       setSaveMessage('Transformation started. Redirecting to import status...');
       setTimeout(() => navigate(`/history`), 1500);
-    } catch {
-      setError('Unable to run transformation.');
+    } catch (err: any) {
+      setError(extractErrorMessage(err, 'Unable to run transformation.'));
+      toast.error('Transformation failed.');
     } finally {
       setSaving(false);
     }
@@ -408,8 +410,9 @@ const MappingPage = () => {
       setTemplateName('');
       const response = await api.get('/workflows');
       setWorkflows(response.data.workflows ?? []);
-    } catch {
-      setError('Unable to save template.');
+    } catch (err: any) {
+      setError(extractErrorMessage(err, 'Unable to save template.'));
+      toast.error('Template save failed.');
     }
   };
 
@@ -496,7 +499,8 @@ const MappingPage = () => {
       </section>
 
       {loading && <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Loading sample rows...</div>}
-      {error && <div className="rounded-[32px] border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">{error}</div>}
+
+      <ErrorAlert message={error} />
 
       {!loading && !error && !uploadId && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Select a dataset to load available columns and enable mapping.</div>

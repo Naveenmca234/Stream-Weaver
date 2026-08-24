@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FixedSizeList as List } from 'react-window';
 import api from '../services/api';
+import ErrorAlert, { extractErrorMessage } from '../components/ErrorAlert';
 import MemoryAudit from '../components/MemoryAudit';
 
 const PreviewPage = () => {
@@ -12,27 +13,27 @@ const PreviewPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const loadPreview = async () => {
+    if (!uploadId) {
+      setError('Please select a dataset before viewing preview.');
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get(`/imports/${uploadId}/preview`);
+      setRows(response.data.rows ?? []);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Unable to load transformed preview rows for this upload.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const uploadId = searchParams.get('uploadId')?.trim() ?? '';
-
-    const loadPreview = async () => {
-      if (!uploadId) {
-        setError('Please select a dataset before viewing preview.');
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await api.get(`/imports/${uploadId}/preview`);
-        setRows(response.data.rows ?? []);
-      } catch (err) {
-        setError('Unable to load transformed preview rows for this upload.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     void loadPreview();
   }, [searchParams]);
 
@@ -102,9 +103,10 @@ const PreviewPage = () => {
           <p className="mt-4 text-lg font-medium text-slate-300">Loading preview data...</p>
         </div>
       )}
-      {error && <div className="rounded-[32px] border border-rose-500/20 bg-rose-500/5 p-8 text-rose-300 shadow-lg text-center backdrop-blur-xl">⚠️ {error}</div>}
 
-      {!loading && !error && rows.length === 0 && (
+      {error && <ErrorAlert message={error} onRetry={loadPreview} />}
+
+      {!loading && !error && (!columns.length || !rows.length) && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-16 text-center shadow-2xl backdrop-blur-xl">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/80 text-4xl shadow-inner">👀</div>
           <h3 className="mt-5 text-2xl font-semibold text-white">No preview data</h3>
