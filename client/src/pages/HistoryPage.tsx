@@ -99,30 +99,39 @@ const HistoryPage = () => {
       </section>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6 shadow-lg">
+        <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-cyan-500">
           <p className="text-sm text-slate-400">Import jobs</p>
-          <p className="mt-3 text-4xl font-semibold text-white">{jobs.length}</p>
+          <p className="mt-3 text-3xl font-semibold text-white">{jobs.length}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6 shadow-lg">
+        <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-emerald-500">
           <p className="text-sm text-slate-400">Rows ingested</p>
-          <p className="mt-3 text-4xl font-semibold text-white">{totalRows.toLocaleString()}</p>
+          <p className="mt-3 text-3xl font-semibold text-white">{totalRows.toLocaleString()}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6 shadow-lg">
+        <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-indigo-500">
           <p className="text-sm text-slate-400">Last updated</p>
-          <p className="mt-3 text-4xl font-semibold text-white">{latestJob ? new Date(latestJob.createdAt).toLocaleDateString() : '—'}</p>
+          <p className="mt-3 text-3xl font-semibold text-white">{latestJob ? new Date(latestJob.createdAt).toLocaleDateString() : '—'}</p>
         </div>
       </div>
 
-      {loading && <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Loading history...</div>}
-      {error && <div className="rounded-[32px] border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">{error}</div>}
+      {loading && (
+        <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/10 bg-slate-900/80 p-16 shadow-2xl backdrop-blur-xl">
+          <svg className="h-10 w-10 animate-spin text-cyan-500" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <p className="mt-4 text-lg font-medium text-slate-300">Loading history...</p>
+        </div>
+      )}
+      {error && <div className="rounded-[32px] border border-rose-500/20 bg-rose-500/5 p-8 text-rose-300 shadow-lg text-center backdrop-blur-xl">⚠️ {error}</div>}
 
       {!loading && !error && jobs.length === 0 && (
-        <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-400">No import history available yet. Upload a dataset to begin tracking jobs.</div>
+        <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-16 text-center shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/80 text-4xl shadow-inner">📂</div>
+          <h3 className="mt-5 text-2xl font-semibold text-white">No history found</h3>
+          <p className="mt-3 text-slate-400">Upload your first dataset to start building your import history timeline.</p>
+        </div>
       )}
 
       {!loading && jobs.length > 0 && (
         <div className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/80 shadow-2xl">
-          <div className="grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-white/10 bg-slate-950/80 px-4 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
+          <div className="grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-white/10 bg-slate-950/80 px-8 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
             <div>Dataset</div>
             <div>Status</div>
             <div>Rows</div>
@@ -130,21 +139,21 @@ const HistoryPage = () => {
             <div>Started</div>
             <div>Action</div>
           </div>
-          <div className="max-h-[560px] overflow-auto px-4 py-4">
+          <div className="max-h-[560px] overflow-auto p-4 space-y-2">
             {jobs.map((job) => (
               <div
                 key={job.uploadId}
-                className={`grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-white/10 py-3 text-sm text-slate-200 last:border-b-0 ${job.uploadId === currentUploadId ? 'bg-slate-800/60' : ''}`}
+                className={`grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] items-center gap-4 py-3 px-4 text-sm text-slate-200 rounded-2xl border transition-colors hover:bg-white/5 ${job.uploadId === currentUploadId ? 'bg-cyan-500/10 border-cyan-500/20' : 'bg-slate-950/50 border-white/5'}`}
               >
-                <div className="truncate">{job.fileName}</div>
+                <div className="truncate font-medium text-white">{job.fileName}</div>
                 <div>
-                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${job.status === 'completed' ? 'bg-emerald-500/15 text-emerald-200' : job.status === 'failed' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-200'}`}>
-                    {job.status}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border ${job.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : job.status === 'failed' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                    {job.status === 'completed' ? '✅ Completed' : job.status === 'failed' ? '🔴 Failed' : '⏳ Pending'}
                   </span>
                 </div>
-                <div>{job.totalRows.toLocaleString()}</div>
-                <div>{job.failedRows.toLocaleString()}</div>
-                <div>{job.startedAt ? new Date(job.startedAt).toLocaleDateString() : '—'}</div>
+                <div className="font-mono text-slate-300">{job.totalRows.toLocaleString()}</div>
+                <div className="font-mono text-slate-300">{job.failedRows.toLocaleString()}</div>
+                <div className="text-slate-400">{job.startedAt ? new Date(job.startedAt).toLocaleDateString() : '—'}</div>
                 <div>
                   <div className="flex gap-2">
                     <button

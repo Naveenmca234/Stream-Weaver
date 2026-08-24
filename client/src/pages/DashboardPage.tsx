@@ -43,21 +43,21 @@ const DashboardPage = () => {
         <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl">
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6">
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-5 shadow-lg border-l-4 border-l-cyan-500 transition hover:bg-slate-900">
                 <p className="text-sm text-slate-400">Total imports</p>
-                <p className="mt-4 text-4xl font-semibold text-white">{metrics?.totalJobs ?? '—'}</p>
+                <p className="mt-3 text-3xl font-semibold text-white">{metrics?.totalJobs ?? '—'}</p>
               </div>
-              <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6">
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-5 shadow-lg border-l-4 border-l-emerald-500 transition hover:bg-slate-900">
                 <p className="text-sm text-slate-400">Rows processed</p>
-                <p className="mt-4 text-4xl font-semibold text-white">{metrics?.totalRows?.toLocaleString() ?? '—'}</p>
+                <p className="mt-3 text-3xl font-semibold text-white">{metrics?.totalRows?.toLocaleString() ?? '—'}</p>
               </div>
-              <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6">
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-5 shadow-lg border-l-4 border-l-rose-500 transition hover:bg-slate-900">
                 <p className="text-sm text-slate-400">Failed imports</p>
-                <p className="mt-4 text-4xl font-semibold text-white">{metrics?.failedJobs ?? '—'}</p>
+                <p className="mt-3 text-3xl font-semibold text-white">{metrics?.failedJobs ?? '—'}</p>
               </div>
-              <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6">
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-5 shadow-lg border-l-4 border-l-indigo-500 transition hover:bg-slate-900">
                 <p className="text-sm text-slate-400">New upload</p>
-                <button onClick={() => window.location.assign('/upload')} className="mt-4 rounded-full bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
+                <button onClick={() => window.location.assign('/upload')} className="mt-3 w-full rounded-full bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
                   Start upload
                 </button>
               </div>
@@ -84,11 +84,18 @@ const DashboardPage = () => {
                   <p className="mt-2 text-xl font-semibold text-white">Metrics loaded</p>
                 </div>
                 {loading ? (
-                  <p className="text-sm text-slate-400">Loading...</p>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-sm font-medium text-cyan-400">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Loading
+                  </span>
                 ) : error ? (
-                  <p className="text-sm text-rose-300">{error}</p>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-4 py-1.5 text-sm font-medium text-rose-400">
+                    ⚠️ {error}
+                  </span>
                 ) : (
-                  <span className="rounded-full bg-slate-800 px-4 py-2 text-sm text-slate-300">Ready</span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Ready
+                  </span>
                 )}
               </div>
 
