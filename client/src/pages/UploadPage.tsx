@@ -133,7 +133,23 @@ const UploadPage = () => {
     }
   };
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({ onDrop, multiple: false, accept: { 'text/csv': ['.csv'], 'application/json': ['.json'] } });
+  const { getRootProps, getInputProps, isDragActive, isDragAccept, isDragReject, open } = useDropzone({ 
+    onDrop, 
+    multiple: false, 
+    accept: { 'text/csv': ['.csv'], 'application/json': ['.json'] } 
+  });
+
+  let dropzoneClasses = 'min-h-[320px] flex flex-col items-center justify-center rounded-[28px] border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-500/50 ';
+  
+  if (isDragReject) {
+    dropzoneClasses += 'border-rose-500 bg-rose-500/10 scale-[1.02]';
+  } else if (isDragAccept) {
+    dropzoneClasses += 'border-emerald-500 bg-emerald-500/10 scale-[1.02]';
+  } else if (isDragActive) {
+    dropzoneClasses += 'border-cyan-400 bg-cyan-500/10 scale-[1.02]';
+  } else {
+    dropzoneClasses += 'border-white/10 bg-slate-950/80 hover:border-cyan-400 hover:bg-slate-900';
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -141,11 +157,11 @@ const UploadPage = () => {
         <section className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
             <div className="max-w-3xl">
-              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Upload dataset</p>
-              <h1 className="mt-3 text-4xl font-semibold text-white">Enterprise-grade data ingestion with end-to-end visibility.</h1>
-              <p className="mt-4 text-slate-400">
-                Upload large CSV or JSON files using a secure, streamed ingestion channel designed for modern data teams.
-              </p>
+               <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Upload dataset</p>
+               <h1 className="mt-3 text-4xl font-semibold text-white">Enterprise-grade data ingestion with end-to-end visibility.</h1>
+               <p className="mt-4 text-slate-400">
+                 Upload large CSV or JSON files using a secure, streamed ingestion channel designed for modern data teams.
+               </p>
             </div>
             <button onClick={() => navigate('/dashboard')} className="inline-flex items-center justify-center rounded-full border border-white/10 bg-slate-800/90 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:bg-slate-700">
               Back to dashboard
@@ -155,17 +171,26 @@ const UploadPage = () => {
 
         <div className="space-y-6">
           <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl">
-            <div {...getRootProps()} className="min-h-[280px] rounded-[28px] border-2 border-dashed border-cyan-500/30 bg-slate-950/80 p-10 text-center transition hover:border-cyan-400 hover:bg-slate-900">
+            <div {...getRootProps()} className={dropzoneClasses}>
               <input {...getInputProps()} />
-              <p className="text-xl font-semibold text-white">{isDragActive ? 'Drop your dataset here' : 'Drag & drop a CSV or JSON file'}</p>
-              <p className="mt-3 text-sm text-slate-400">Accepted formats: CSV, JSON. Streaming mode protects RAM and scales effortlessly.</p>
+              
+              <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl transition-colors duration-200 ${isDragReject ? 'bg-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.3)]' : isDragAccept ? 'bg-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : isDragActive ? 'bg-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-slate-900 shadow-inner'}`}>
+                {isDragReject ? '🚫' : isDragAccept ? '✅' : isDragActive ? '📥' : '📄'}
+              </div>
+
+              <p className={`text-2xl font-semibold transition-colors duration-200 ${isDragReject ? 'text-rose-400' : isDragAccept ? 'text-emerald-400' : isDragActive ? 'text-cyan-400' : 'text-white'}`}>
+                {isDragReject ? 'Unsupported file format' : isDragAccept ? 'Drop file to start upload' : isDragActive ? 'Drop your dataset here' : 'Drag & drop a CSV or JSON file'}
+              </p>
+              
+              <p className="mt-3 text-sm text-slate-400 max-w-xl">Accepted formats: CSV, JSON. Streaming mode protects RAM and scales effortlessly.</p>
+              
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
                   open();
                 }}
-                className="mt-6 inline-flex items-center justify-center rounded-full bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                className="mt-6 inline-flex items-center justify-center rounded-full bg-cyan-500 px-6 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-500/50"
               >
                 Choose file
               </button>
