@@ -241,9 +241,25 @@ const CleaningPage = () => {
         </div>
       )}
 
-      {loading && uploadId && <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">Loading missing data summary...</div>}
-      {error && <div className="rounded-[32px] border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">{error}</div>}
-      {message && <div className="rounded-[32px] border border-cyan-400/20 bg-cyan-500/10 p-6 text-cyan-200">{message}</div>}
+      {loading && uploadId && (
+        <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/10 bg-slate-900/80 p-16 shadow-2xl backdrop-blur-xl">
+          <svg className="h-10 w-10 animate-spin text-cyan-500" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <p className="mt-4 text-lg font-medium text-slate-300">Analyzing dataset...</p>
+        </div>
+      )}
+      
+      {error && (
+        <div className="flex items-center gap-3 rounded-[24px] border border-rose-500/20 bg-rose-500/10 p-6 text-rose-300 shadow-lg">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/20 text-xl shadow-inner">⚠️</div>
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
+      {message && (
+        <div className="flex items-center gap-3 rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-emerald-300 shadow-lg">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xl shadow-inner">✨</div>
+          <p className="font-medium">{message}</p>
+        </div>
+      )}
 
       {!loading && uploadId && columns.length === 0 && !error && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8">
@@ -322,32 +338,44 @@ const CleaningPage = () => {
               </div>
             </div>
 
-            <div className="grid min-w-full grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_1.6fr_1.2fr] gap-4 border-b border-white/10 px-4 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
+            <div className="grid min-w-full grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_1.6fr_1.4fr] gap-4 border-b border-white/10 bg-slate-950/80 px-8 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
               <div>Field</div>
               <div>Missing</div>
               <div>Rate</div>
               <div>Type</div>
               <div>Sample values</div>
-              <div>Strategy</div>
+              <div>Resolution Rule</div>
             </div>
-            <div className="divide-y divide-white/5">
+            <div className="max-h-[560px] overflow-auto p-4 space-y-2">
               {visibleColumns.map((column) => {
                 const current = strategies[column.name] ?? { strategy: 'keep', fillValue: '' };
+                const isConfigured = current.strategy !== 'keep';
+                const isApplying = applying === column.name;
+
                 return (
-                  <div key={column.name} className="grid min-w-full grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_1.6fr_1.2fr] gap-4 px-4 py-4 text-sm text-slate-200 items-center">
-                    <div className="font-medium text-white">{column.name}</div>
-                    <div>{column.missingValues}</div>
-                    <div>{column.missingPercentage}%</div>
+                  <div key={column.name} className={`grid min-w-full grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_1.6fr_1.4fr] items-center gap-4 px-4 py-3 text-sm text-slate-200 rounded-2xl border transition-colors ${isConfigured ? 'bg-cyan-500/5 border-cyan-500/20' : 'bg-slate-950/50 border-white/5 hover:bg-white/5'}`}>
+                    <div className="font-medium text-white flex items-center gap-2">
+                      {isApplying && <svg className="h-4 w-4 animate-spin text-cyan-500 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                      {column.name}
+                    </div>
+                    <div>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${column.missingValues > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                        {column.missingValues.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className={column.missingPercentage > 0 ? 'text-amber-400' : 'text-slate-400'}>{column.missingPercentage.toFixed(1)}%</div>
                     <div>{column.type}</div>
-                    <div className="text-slate-400">{column.sampleValues.slice(0, 3).map((value, idx) => <span key={idx}>{String(value)}{idx < column.sampleValues.length - 1 ? ', ' : ''}</span>)}</div>
-                    <div className="space-y-3">
+                    <div className="truncate text-slate-400" title={column.sampleValues.join(', ')}>
+                      {column.sampleValues.slice(0, 3).map((value, idx) => <span key={idx}>{String(value)}{idx < column.sampleValues.length - 1 ? ', ' : ''}</span>)}
+                    </div>
+                    <div className="space-y-2">
                       <select
                         value={current.strategy}
                         onChange={(e) => handleStrategyChange(column.name, e.target.value as StrategyChoice)}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-200 outline-none focus:border-cyan-400"
+                        className={`w-full rounded-2xl border px-3 py-2 text-sm outline-none transition ${isConfigured ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 focus:border-cyan-400' : 'bg-slate-900/80 border-white/10 text-slate-400 focus:border-cyan-400'}`}
                       >
                         {Object.entries(strategyLabels).map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
+                          <option key={value} value={value}>{value === 'keep' ? 'Ignore (No rule)' : label}</option>
                         ))}
                       </select>
                       {current.strategy === 'fill' && (
@@ -356,7 +384,7 @@ const CleaningPage = () => {
                           value={current.fillValue}
                           onChange={(event) => handleFillValueChange(column.name, event.target.value)}
                           placeholder="Fill value"
-                          className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-200 outline-none focus:border-cyan-400"
+                          className="w-full rounded-2xl border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-sm text-cyan-100 outline-none focus:border-cyan-400"
                         />
                       )}
                     </div>
@@ -364,7 +392,10 @@ const CleaningPage = () => {
                 );
               })}
               {visibleColumns.length === 0 && (
-                <div className="px-4 py-8 text-center text-sm text-slate-400">No columns match the filter. Toggle show all columns or update your search.</div>
+                <div className="px-4 py-12 text-center text-sm text-slate-400">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 shadow-inner mb-4 text-2xl">✨</div>
+                  No columns match the filter. Your data is clean!
+                </div>
               )}
             </div>
           </div>
@@ -373,10 +404,10 @@ const CleaningPage = () => {
             <button
               type="button"
               onClick={applyAll}
-              disabled={!columns.length || Boolean(applying)}
+              disabled={columns.filter((col) => strategies[col.name]?.strategy !== 'keep').length === 0 || Boolean(applying)}
               className="rounded-full bg-cyan-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50"
             >
-              {applying ? 'Applying…' : 'Apply Selected Strategies'}
+              {applying ? 'Applying…' : columns.filter((col) => strategies[col.name]?.strategy !== 'keep').length > 0 ? `Apply ${columns.filter((col) => strategies[col.name]?.strategy !== 'keep').length} Selected Strategies` : 'No Rules Configured'}
             </button>
             <button
               type="button"
