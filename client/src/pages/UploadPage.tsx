@@ -35,12 +35,31 @@ const UploadPage = () => {
     return unsubscribe;
   }, []);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[], fileRejections: any[]) => {
+    if (fileRejections.length > 0) {
+      const rejectedFile = fileRejections[0].file;
+      toast.error(`Unsupported file type: ${rejectedFile.name}. Please upload a CSV or JSON file.`);
+      return;
+    }
+
     if (!acceptedFiles.length) return;
     const file = acceptedFiles[0];
 
     if (!['text/csv', 'application/json', 'application/octet-stream'].includes(file.type) && !/\.(csv|json)$/i.test(file.name)) {
-      toast.error('Only CSV and JSON files are supported.');
+      toast.error(`Unsupported file type: ${file.name}. Please upload a CSV or JSON file.`);
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error(`The file ${file.name} is empty. Please select a valid dataset containing data.`);
+      return;
+    }
+
+    const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const limitGB = MAX_FILE_SIZE / (1024 * 1024 * 1024);
+      toast.error(`File ${file.name} (${sizeMB} MB) is too large. Maximum allowed size is ${limitGB}GB.`);
       return;
     }
 
