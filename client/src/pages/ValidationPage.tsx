@@ -196,8 +196,36 @@ const ValidationPage = () => {
         </div>
       )}
 
-      {!loading && !error && records.length === 0 && (
-        <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-400">No validation issues found. Your latest upload was clean.</div>
+      {!loading && !error && uploadId && summary.totalRecords > 0 && (
+        <div className="mt-8">
+          <p className="text-sm uppercase tracking-[0.35em] text-slate-400 mb-4">Validation Summary</p>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-cyan-500">
+              <p className="text-sm text-slate-400">Records checked</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{summary.totalRecords.toLocaleString()}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-emerald-500">
+              <p className="text-sm text-slate-400">Valid records</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{Math.max(0, summary.totalRecords - summary.totalErrors).toLocaleString()}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-rose-500">
+              <p className="text-sm text-slate-400">Invalid records</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{summary.totalErrors.toLocaleString()}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-amber-500">
+              <p className="text-sm text-slate-400">Warnings</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{summary.totalWarnings.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && records.length === 0 && uploadId && (
+        <div className="mt-8 rounded-[32px] border border-emerald-500/20 bg-emerald-500/5 p-12 text-center shadow-lg backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 text-4xl shadow-inner">✅</div>
+          <h3 className="mt-5 text-2xl font-semibold text-emerald-400">Validation Passed</h3>
+          <p className="mt-3 text-slate-400">No validation issues were found. All <span className="text-slate-200 font-medium">{summary.totalRecords.toLocaleString()}</span> records have successfully passed quality checks.</p>
+        </div>
       )}
 
       {!loading && records.length > 0 && (
@@ -248,13 +276,17 @@ const ValidationPage = () => {
               <div>Message</div>
               <div>Severity</div>
             </div>
-            <div className="max-h-[560px] overflow-auto px-4 py-4">
+            <div className="max-h-[560px] overflow-auto p-4 space-y-2">
               {records.map((record, idx) => (
-                <div key={idx} className="grid min-w-full grid-cols-[0.9fr_1.6fr_2fr_1fr] gap-4 border-b border-white/10 py-3 text-sm text-slate-200 last:border-b-0">
-                  <div>{record.rowNumber}</div>
-                  <div>{record.field}</div>
-                  <div>{record.message}</div>
-                  <div className={`${record.severity === 'error' ? 'text-rose-300' : 'text-amber-300'}`}>{record.severity}</div>
+                <div key={idx} className={`grid min-w-full grid-cols-[0.9fr_1.6fr_2fr_1fr] items-center gap-4 py-3 px-4 text-sm text-slate-200 rounded-2xl border ${record.severity === 'error' ? 'bg-rose-500/5 border-rose-500/10' : 'bg-amber-500/5 border-amber-500/10'}`}>
+                  <div className="font-mono text-slate-400">Row {record.rowNumber}</div>
+                  <div className="font-medium text-white">{record.field}</div>
+                  <div className="text-slate-300">{record.message}</div>
+                  <div>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${record.severity === 'error' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      {record.severity === 'error' ? 'Error' : 'Warning'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
