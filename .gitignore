@@ -44,3 +44,7 @@ coverage/
 # Local backups
 *_backup/
 *.backup
+
+# Generated verification artifacts
+sample-data/employees-medium.csv
+server/temp/
