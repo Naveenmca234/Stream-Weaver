@@ -14,7 +14,8 @@ const UploadPage = () => {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [savingColumns, setSavingColumns] = useState(false);
 
   const [progress, setProgress] = useState(0);
@@ -78,7 +79,9 @@ const UploadPage = () => {
     setRowsProcessed(0);
     setRowsFailed(0);
     setRowsPerSecond(0);
-    setLoading(true);
+    setUploadStatus('uploading');
+    setErrorMessage('');
+    setFileName(file.name); // Set early to show file name during upload
 
     joinRoom(clientUploadId);
 
@@ -100,13 +103,14 @@ const UploadPage = () => {
 
       const profileResponse = await api.get('/profiling', { params: { uploadId: id } });
       setProfile(profileResponse.data.profile);
+      setUploadStatus('success');
       toast.success('Upload complete! Dataset is ready for profiling.');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Upload failed. Please try again.';
       console.error('Upload page error:', err);
+      setErrorMessage(errorMsg);
+      setUploadStatus('error');
       toast.error(errorMsg);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -174,7 +178,10 @@ const UploadPage = () => {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900/80 text-lg font-semibold text-cyan-300">{progress}%</div>
                   <div>
                     <p className="text-sm text-slate-300">Live ingestion</p>
-                    <p className="mt-2 text-xl font-semibold text-white">{loading ? 'Processing' : fileName ? 'Ready' : 'Waiting'}</p>
+                    <p className="mt-2 text-xl font-semibold text-white">
+                      {uploadStatus === 'uploading' ? 'Processing' : uploadStatus === 'success' ? 'Ready' : uploadStatus === 'error' ? 'Failed' : 'Waiting'}
+                    </p>
+                    {errorMessage && <p className="text-sm text-rose-400 mt-1">{errorMessage}</p>}
                   </div>
                 </div>
               </div>
@@ -188,7 +195,7 @@ const UploadPage = () => {
               </div>
             </div>
 
-            {fileName && !loading && (
+            {uploadStatus === 'success' && fileName && (
               <>
                 <div className="mt-6 rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Dataset summary</p>
@@ -244,7 +251,7 @@ const UploadPage = () => {
                     </div>
                     <div className="rounded-[24px] bg-slate-900/80 p-4">
                       <p className="text-sm text-slate-400">Status</p>
-                      <p className="mt-3 text-lg font-semibold text-white">{loading ? 'Processing' : uploadId ? 'Ready' : 'Waiting'}</p>
+                      <p className="mt-3 text-lg font-semibold text-white">Ready</p>
                     </div>
                     <div className="rounded-[24px] bg-slate-900/80 p-4">
                       <p className="text-sm text-slate-400">Progress</p>
@@ -259,7 +266,7 @@ const UploadPage = () => {
               </>
             )}
 
-            {uploadId && !loading && (
+            {uploadStatus === 'success' && uploadId && (
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   onClick={() => navigate(`/cleaning?uploadId=${uploadId}`)}
