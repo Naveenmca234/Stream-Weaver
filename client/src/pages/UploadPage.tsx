@@ -222,47 +222,72 @@ const UploadPage = () => {
 
             {uploadStatus === 'success' && fileName && (
               <>
-                <div className="mt-6 rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Dataset summary</p>
-                  <p className="mt-2 text-sm text-slate-300">Key metrics from your uploaded file.</p>
+                <div className="mt-6 rounded-[32px] border border-white/10 bg-slate-950/80 p-8 shadow-xl">
+                  <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Dataset profiling</p>
+                  <p className="mt-2 text-slate-400">Automated quality and schema analysis for your uploaded file.</p>
 
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Total rows</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.totalRows?.toLocaleString() ?? totalRows?.toLocaleString() ?? '—'}</p>
+                  {!profile ? (
+                    <div className="mt-8 flex flex-col items-center justify-center rounded-[28px] border border-white/5 bg-slate-900/50 p-12 text-center">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800 text-2xl shadow-inner">📊</div>
+                      <p className="text-lg font-medium text-white">Profiling in progress</p>
+                      <p className="mt-2 text-sm text-slate-400">We are analyzing the schema and data quality...</p>
                     </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Total columns</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.totalColumns ?? '—'}</p>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Missing values</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.totalMissingValues?.toLocaleString() ?? '—'}</p>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Duplicate rows</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.totalDuplicateRows?.toLocaleString() ?? '—'}</p>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-cyan-500 hover:bg-slate-800/80 transition-colors">
+                          <p className="text-sm text-slate-400 flex items-center gap-2">
+                            <span className="text-cyan-400">☰</span> Total rows
+                          </p>
+                          <p className="mt-3 text-3xl font-semibold text-white">{profile?.totalRows?.toLocaleString() ?? totalRows?.toLocaleString() ?? '—'}</p>
+                        </div>
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-lg border-l-4 border-l-indigo-500 hover:bg-slate-800/80 transition-colors">
+                          <p className="text-sm text-slate-400 flex items-center gap-2">
+                            <span className="text-indigo-400">▤</span> Total columns
+                          </p>
+                          <p className="mt-3 text-3xl font-semibold text-white">{profile?.totalColumns ?? '—'}</p>
+                        </div>
+                        <div className={`rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-lg border-l-4 hover:bg-slate-800/80 transition-colors ${profile?.totalMissingValues > 0 ? 'border-l-amber-500' : 'border-l-emerald-500'}`}>
+                          <p className="text-sm text-slate-400 flex items-center gap-2">
+                            <span className={profile?.totalMissingValues > 0 ? 'text-amber-400' : 'text-emerald-400'}>{profile?.totalMissingValues > 0 ? '⚠️' : '✅'}</span> Missing values
+                          </p>
+                          <p className="mt-3 text-3xl font-semibold text-white">{profile?.totalMissingValues?.toLocaleString() ?? '—'}</p>
+                        </div>
+                        <div className={`rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-lg border-l-4 hover:bg-slate-800/80 transition-colors ${profile?.totalDuplicateRows > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}>
+                          <p className="text-sm text-slate-400 flex items-center gap-2">
+                            <span className={profile?.totalDuplicateRows > 0 ? 'text-rose-400' : 'text-emerald-400'}>{profile?.totalDuplicateRows > 0 ? '🚫' : '✅'}</span> Duplicate rows
+                          </p>
+                          <p className="mt-3 text-3xl font-semibold text-white">{profile?.totalDuplicateRows?.toLocaleString() ?? '—'}</p>
+                        </div>
+                      </div>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Numeric columns</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.numberNumericColumns ?? '—'}</p>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Text columns</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.numberTextColumns ?? '—'}</p>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Date columns</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.numberDateColumns ?? '—'}</p>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-900/80 p-4">
-                      <p className="text-sm text-slate-400">Quality score</p>
-                      <p className="mt-3 text-2xl font-semibold text-white">{profile?.qualityScore != null ? `${profile.qualityScore}%` : '—'}</p>
-                    </div>
-                  </div>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-sm">
+                          <p className="text-sm text-slate-400">Numeric columns</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-200">{profile?.numberNumericColumns ?? '—'}</p>
+                        </div>
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-sm">
+                          <p className="text-sm text-slate-400">Text columns</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-200">{profile?.numberTextColumns ?? '—'}</p>
+                        </div>
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-sm">
+                          <p className="text-sm text-slate-400">Date columns</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-200">{profile?.numberDateColumns ?? '—'}</p>
+                        </div>
+                        <div className="rounded-[24px] border border-white/5 bg-slate-900/80 p-5 shadow-sm bg-gradient-to-br from-slate-900/80 to-slate-800/80">
+                          <p className="text-sm text-slate-400">Quality score</p>
+                          <div className="mt-2 flex items-baseline gap-2">
+                            <p className="text-2xl font-semibold text-white">{profile?.qualityScore != null ? `${profile.qualityScore}%` : '—'}</p>
+                            {profile?.qualityScore != null && (
+                              <span className={`text-xs font-medium ${profile.qualityScore >= 95 ? 'text-emerald-400' : profile.qualityScore >= 80 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                {profile.qualityScore >= 95 ? 'Excellent' : profile.qualityScore >= 80 ? 'Fair' : 'Poor'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-6 rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
