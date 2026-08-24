@@ -37,6 +37,10 @@ const HistoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; job: ImportJob | null; force: boolean }>({ isOpen: false, job: null, force: false });
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_rows' | 'most_failed'>('newest');
+
   const currentUploadId = searchParams.get('uploadId') ?? '';
 
   useEffect(() => {
@@ -53,6 +57,35 @@ const HistoryPage = () => {
 
     void loadHistory();
   }, []);
+
+  const displayedJobs = useMemo(() => {
+    let result = [...jobs];
+    
+    if (filterStatus !== 'all') {
+      result = result.filter((job) => job.status === filterStatus);
+    }
+    
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((job) => job.fileName.toLowerCase().includes(q));
+    }
+    
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'most_rows':
+          return b.totalRows - a.totalRows;
+        case 'most_failed':
+          return b.failedRows - a.failedRows;
+        case 'newest':
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+    
+    return result;
+  }, [jobs, filterStatus, searchQuery, sortBy]);
 
   const totalRows = useMemo(() => jobs.reduce((sum, job) => sum + job.totalRows, 0), [jobs]);
   const latestJob = jobs[0];
@@ -130,17 +163,53 @@ const HistoryPage = () => {
       )}
 
       {!loading && jobs.length > 0 && (
-        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/80 shadow-2xl">
-          <div className="grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-white/10 bg-slate-950/80 px-8 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
-            <div>Dataset</div>
-            <div>Status</div>
-            <div>Rows</div>
-            <div>Failed</div>
-            <div>Started</div>
-            <div>Action</div>
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-[28px] border border-white/10 bg-slate-900/80 p-5 shadow-lg">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search datasets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-64 rounded-full border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-400 transition"
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="rounded-full border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-400 transition"
+              >
+                <option value="all">All statuses</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+              </select>
+            </div>
+            <div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="rounded-full border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-400 transition"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="most_rows">Most rows</option>
+                <option value="most_failed">Most failed rows</option>
+              </select>
+            </div>
           </div>
-          <div className="max-h-[560px] overflow-auto p-4 space-y-2">
-            {jobs.map((job) => (
+
+          <div className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/80 shadow-2xl">
+            <div className="grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-white/10 bg-slate-950/80 px-8 py-4 text-sm uppercase tracking-[0.18em] text-slate-400">
+              <div>Dataset</div>
+              <div>Status</div>
+              <div>Rows</div>
+              <div>Failed</div>
+              <div>Started</div>
+              <div>Action</div>
+            </div>
+            <div className="max-h-[560px] overflow-auto p-4 space-y-2">
+              {displayedJobs.map((job) => (
               <div
                 key={job.uploadId}
                 className={`grid min-w-full grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.9fr] items-center gap-4 py-3 px-4 text-sm text-slate-200 rounded-2xl border transition-colors hover:bg-white/5 ${job.uploadId === currentUploadId ? 'bg-cyan-500/10 border-cyan-500/20' : 'bg-slate-950/50 border-white/5'}`}
@@ -199,7 +268,14 @@ const HistoryPage = () => {
                 </div>
               </div>
             ))}
+            {displayedJobs.length === 0 && (
+              <div className="px-4 py-12 text-center text-sm text-slate-400">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 shadow-inner mb-4 text-2xl">🔍</div>
+                No imports match your current filters.
+              </div>
+            )}
           </div>
+        </div>
         </div>
       )}
     </div>
