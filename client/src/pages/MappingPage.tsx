@@ -5,6 +5,7 @@ import api from '../services/api';
 type MappingRow = {
   source: string;
   target: string;
+  selected?: boolean;
   transformCode?: string;
   autoClean?: string;
 };
@@ -32,6 +33,7 @@ const buildMappingRows = (mapping: unknown, sourceColumns: string[]): MappingRow
       rowsBySource.set(source, {
         source,
         target,
+        selected: true,
         transformCode: typeof (item as any).transformCode === 'string' ? (item as any).transformCode : undefined,
         autoClean: typeof (item as any).autoClean === 'string' ? (item as any).autoClean : undefined
       });
@@ -40,11 +42,12 @@ const buildMappingRows = (mapping: unknown, sourceColumns: string[]): MappingRow
     for (const [dest, value] of Object.entries(mapping as Record<string, unknown>)) {
       if (!dest.trim()) continue;
       if (typeof value === 'string') {
-        rowsBySource.set(value, { source: value, target: dest, transformCode: undefined });
+        rowsBySource.set(value, { source: value, target: dest, selected: true, transformCode: undefined });
       } else if (value && typeof value === 'object' && typeof (value as any).source === 'string') {
         rowsBySource.set((value as any).source, {
           source: (value as any).source,
           target: dest,
+          selected: true,
           transformCode: typeof (value as any).transformCode === 'string' ? (value as any).transformCode : undefined,
           autoClean: typeof (value as any).autoClean === 'string' ? (value as any).autoClean : undefined
         });
@@ -52,7 +55,7 @@ const buildMappingRows = (mapping: unknown, sourceColumns: string[]): MappingRow
     }
   }
 
-  const rows = sourceColumns.map((source) => rowsBySource.get(source) ?? { source, target: '', transformCode: undefined });
+  const rows = sourceColumns.map((source) => rowsBySource.get(source) ?? { source, target: '', selected: false, transformCode: undefined });
   for (const row of rowsBySource.values()) {
     if (!sourceColumns.includes(row.source)) {
       rows.push(row);
@@ -215,8 +218,8 @@ const MappingPage = () => {
   const oneDatasetAvailable = importJobs.length === 1;
   
   // Calculate isAllSelected and isSomeSelected based on mappingRows first
-  const isAllSelectedValue = mappingRows.filter((row) => row.target.trim() !== '').length === mappingRows.length && mappingRows.length > 0;
-  const isSomeSelectedValue = mappingRows.some((row) => row.target.trim() !== '');
+  const isAllSelectedValue = mappingRows.filter((row) => row.selected).length === mappingRows.length && mappingRows.length > 0;
+  const isSomeSelectedValue = mappingRows.some((row) => row.selected);
   
   const visibleRows = useMemo(
     () => mappingRows
@@ -225,8 +228,8 @@ const MappingPage = () => {
     [mappingRows, searchFilter]
   );
   
-  const isAllSelected = visibleRows.length > 0 && visibleRows.every((row) => row.target.trim() !== '');
-  const isSomeSelected = visibleRows.some((row) => row.target.trim() !== '');
+  const isAllSelected = visibleRows.length > 0 && visibleRows.every((row) => row.selected);
+  const isSomeSelected = visibleRows.some((row) => row.selected);
 
   useEffect(() => {
     if (selectAllCheckboxRef.current) {
@@ -238,12 +241,12 @@ const MappingPage = () => {
     if (isAllSelected) {
       const visibleSources = new Set(visibleRows.map((row) => row.source));
       setMappingRows((current) =>
-        current.map((row) => (visibleSources.has(row.source) ? { ...row, target: '' } : row))
+        current.map((row) => (visibleSources.has(row.source) ? { ...row, selected: false } : row))
       );
     } else {
       const visibleSources = new Set(visibleRows.map((row) => row.source));
       setMappingRows((current) =>
-        current.map((row) => (visibleSources.has(row.source) ? { ...row, target: row.source } : row))
+        current.map((row) => (visibleSources.has(row.source) ? { ...row, selected: true, target: row.target || row.source } : row))
       );
     }
   };
@@ -251,21 +254,21 @@ const MappingPage = () => {
   const targetOptions = useMemo(() => {
     const targets = new Set<string>();
     mappingRows.forEach((row) => {
-      if (row.target?.trim()) targets.add(row.target.trim());
+      if (row.selected && row.target?.trim()) targets.add(row.target.trim());
     });
     availableSourceFields.forEach((field) => targets.add(field));
     return Array.from(targets).sort((a, b) => a.localeCompare(b));
   }, [availableSourceFields, mappingRows]);
 
   const selectedTargets = useMemo(
-    () => new Set(mappingRows.filter((row) => row.target.trim()).map((row) => row.target.trim())),
+    () => new Set(mappingRows.filter((row) => row.selected && row.target.trim()).map((row) => row.target.trim())),
     [mappingRows]
   );
 
   const mappedValues = useMemo(() => {
     const values: Record<string, unknown> = {};
-    mappingRows.forEach(({ source, target }) => {
-      if (!target.trim()) return;
+    mappingRows.forEach(({ source, target, selected }) => {
+      if (!selected || !target.trim()) return;
       values[target.trim()] = sampleRow[source] ?? '';
     });
     return values;
@@ -290,8 +293,24 @@ const MappingPage = () => {
       return;
     }
 
-    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
-      if (!row.target.trim()) return acc;
+    const selectedRows = mappingRows.filter(r => r.selected);
+    if (!selectedRows.length) {
+      setError('Map at least one selected column to a target field before saving.');
+      return;
+    }
+    
+    if (selectedRows.some(r => !r.target.trim())) {
+      setError('One or more selected fields have an empty target name. Please provide a valid target field name.');
+      return;
+    }
+    
+    const targetNames = selectedRows.map(r => r.target.trim());
+    if (new Set(targetNames).size !== targetNames.length) {
+      setError('Duplicate target fields are not allowed. Please ensure each mapped source has a unique target.');
+      return;
+    }
+
+    const payload = selectedRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
       acc[row.target.trim()] = {
         source: row.source,
         transformCode: row.transformCode?.trim() || undefined,
@@ -299,11 +318,6 @@ const MappingPage = () => {
       };
       return acc;
     }, {});
-
-    if (!Object.keys(payload).length) {
-      setError('Map at least one selected column to a target field before saving.');
-      return;
-    }
 
     setSaving(true);
     setSaveMessage('');
@@ -325,8 +339,24 @@ const MappingPage = () => {
       return;
     }
 
-    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
-      if (!row.target.trim()) return acc;
+    const selectedRows = mappingRows.filter(r => r.selected);
+    if (!selectedRows.length) {
+      setError('Map at least one selected column to a target field before transforming.');
+      return;
+    }
+    
+    if (selectedRows.some(r => !r.target.trim())) {
+      setError('One or more selected fields have an empty target name. Please provide a valid target field name.');
+      return;
+    }
+    
+    const targetNames = selectedRows.map(r => r.target.trim());
+    if (new Set(targetNames).size !== targetNames.length) {
+      setError('Duplicate target fields are not allowed. Please ensure each mapped source has a unique target.');
+      return;
+    }
+
+    const payload = selectedRows.reduce<Record<string, { source: string; transformCode?: string; autoClean?: string }>>((acc, row) => {
       acc[row.target.trim()] = {
         source: row.source,
         transformCode: row.transformCode?.trim() || undefined,
@@ -334,11 +364,6 @@ const MappingPage = () => {
       };
       return acc;
     }, {});
-
-    if (!Object.keys(payload).length) {
-      setError('Map at least one selected column to a target field before transforming.');
-      return;
-    }
 
     setSaving(true);
     setSaveMessage('');
@@ -362,7 +387,13 @@ const MappingPage = () => {
       return;
     }
 
-    const payload = mappingRows.reduce<Record<string, { source: string; transformCode?: string }>>((acc, row) => {
+    const selectedRows = mappingRows.filter(r => r.selected);
+    if (!selectedRows.length) {
+      setError('Map at least one selected column before saving a template.');
+      return;
+    }
+
+    const payload = selectedRows.reduce<Record<string, { source: string; transformCode?: string }>>((acc, row) => {
       if (!row.target.trim()) return acc;
       acc[row.target.trim()] = {
         source: row.source,
@@ -370,11 +401,6 @@ const MappingPage = () => {
       };
       return acc;
     }, {});
-
-    if (!Object.keys(payload).length) {
-      setError('Map at least one selected column before saving a template.');
-      return;
-    }
 
     try {
       await api.post('/workflows', { name: templateName, definition: payload });
@@ -587,35 +613,39 @@ const MappingPage = () => {
               <div className="max-h-[720px] overflow-y-auto">
                 {visibleRows.length ? visibleRows.map((row) => {
                   const expanded = expandedRows[row.source];
-                  const isSelected = row.target.trim() !== '';
+                  const isSelected = !!row.selected;
+                  const isValid = isSelected && row.target.trim() !== '';
                   return (
-                    <div key={`${row.source}-${row.rowIndex}`} className="border-b border-white/10 px-4 py-4 last:border-none">
+                    <div key={`${row.source}-${row.rowIndex}`} className={`border-b border-white/10 px-4 py-4 last:border-none transition-colors ${isSelected ? 'bg-cyan-500/5' : ''}`}>
                       <div className="grid gap-3 sm:grid-cols-[0.5fr_1.5fr_1.4fr_0.9fr] sm:items-center">
                         <div className="flex items-center justify-center">
                           <input
-                            type="radio"
+                            type="checkbox"
                             id={`select-${row.rowIndex}`}
                             checked={isSelected}
                             onChange={(event) => {
-                              if (event.target.checked) {
-                                updateMappingRow(row.rowIndex, { target: row.source });
-                              } else {
-                                updateMappingRow(row.rowIndex, { target: '' });
-                              }
+                              updateMappingRow(row.rowIndex, { selected: event.target.checked, target: event.target.checked ? (row.target || row.source) : row.target });
                             }}
-                            className="h-5 w-5 cursor-pointer accent-cyan-400"
+                            className="h-5 w-5 cursor-pointer accent-cyan-400 rounded"
                           />
                         </div>
-                        <div>
-                          <label htmlFor={`select-${row.rowIndex}`} className="font-medium text-white cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor={`select-${row.rowIndex}`} className="font-medium text-white cursor-pointer truncate">
                             {row.source}
                           </label>
+                          {isValid && <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                         </div>
                         <div>
-                          {isSelected && (
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-slate-100">
-                              {row.target}
-                            </div>
+                          {isSelected ? (
+                            <input
+                              type="text"
+                              value={row.target}
+                              onChange={(e) => updateMappingRow(row.rowIndex, { target: e.target.value })}
+                              placeholder="Target field name"
+                              className={`w-full rounded-2xl border ${row.target.trim() ? 'border-white/10' : 'border-rose-500/50'} bg-slate-900/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400`}
+                            />
+                          ) : (
+                            <div className="text-sm text-slate-500 italic px-4 py-3">Ignored</div>
                           )}
                         </div>
                         <div className="flex items-center justify-between gap-3 sm:justify-end">
@@ -662,7 +692,10 @@ const MappingPage = () => {
                     </div>
                   );
                 }) : (
-                  <div className="px-4 py-8 text-center text-sm text-slate-400">No matching source fields found. Adjust your search or update the dataset selection.</div>
+                  <div className="px-4 py-12 text-center text-sm text-slate-400">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/80 text-2xl">🔍</div>
+                    No matching source fields found. Adjust your search filter or dataset selection.
+                  </div>
                 )}
               </div>
             </div>
@@ -715,7 +748,7 @@ const MappingPage = () => {
                   <div>Transformed value</div>
                 </div>
                 <div className="divide-y divide-white/10">
-                  {mappingRows.filter((row) => row.target.trim()).map((row) => (
+                  {mappingRows.filter((row) => row.selected && row.target.trim()).map((row) => (
                     <div key={`${row.source}-preview`} className="grid grid-cols-[1fr_1fr] gap-3 px-4 py-3 text-sm text-slate-200">
                       <div>
                         <p className="text-xs text-slate-500">[{row.source}]</p>
