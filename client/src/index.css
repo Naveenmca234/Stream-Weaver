@@ -1,6 +1,7 @@
 :root {
   font-family:
-    Inter,
+    "Avenir Next",
+    "Trebuchet MS",
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -53,7 +54,13 @@ body,
 body {
   min-height: 100vh;
   overflow-x: hidden;
-  background: var(--background);
+  background:
+    radial-gradient(
+      circle at 82% 8%,
+      rgba(111, 140, 255, 0.09),
+      transparent 28rem
+    ),
+    var(--background);
 }
 
 button,
@@ -380,7 +387,14 @@ a:focus-visible {
   border: 1px solid var(--border);
   border-radius: 15px;
 
-  background: var(--surface);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 34%
+    ),
+    var(--surface);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16);
 }
 
 .panel-header {
@@ -446,7 +460,15 @@ a:focus-visible {
 
   transition:
     border-color 160ms ease,
-    background 160ms ease;
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.upload-dropzone:hover,
+.upload-dropzone:focus-within {
+  border-color: #53627a;
+  background: #101a27;
+  transform: translateY(-2px);
 }
 
 .upload-dropzone.dragging {
