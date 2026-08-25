@@ -75,9 +75,14 @@ export default function UploadDropzone({
             ? 'dragging'
             : ''
         }`,
+        'aria-label': 'CSV file upload area',
       })}
     >
-      <input {...getInputProps()} />
+      <input
+        {...getInputProps({
+          'aria-label': 'Choose a CSV file',
+        })}
+      />
 
       <div className="upload-symbol">
         <Upload size={26} />

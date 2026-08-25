@@ -720,6 +720,10 @@ export default function UploadPage() {
 
                 <div className="progress-track">
                   <div
+                    aria-valuemax="100"
+                    aria-valuemin="0"
+                    aria-valuenow={uploadProgress}
+                    role="progressbar"
                     className="progress-value"
                     style={{
                       width:
