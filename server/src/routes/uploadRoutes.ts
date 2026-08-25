@@ -26,7 +26,7 @@ router.post('/finalize', requireAuth, async (req: AuthedRequest, res: Response) 
   if (!tusFileId || !fileName) return res.status(400).json({ message: 'Missing file details' });
 
   const io = req.app.get('io');
-  const tempFilePath = path.resolve(__dirname, `../../../../storage/uploads/${tusFileId}`);
+  const tempFilePath = path.resolve(__dirname, `../../../storage/uploads/${tusFileId}`);
   const extension = path.extname(fileName).toLowerCase();
   let fileSize = 0;
   try {

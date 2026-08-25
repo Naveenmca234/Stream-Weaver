@@ -1,22 +1,28 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home, Upload, Database, Layers, Settings, FileSearch, UserCircle2, Sparkles, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-const navItems = [
+const generalItems = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
+  { label: 'Import History', path: '/history', icon: Database },
+  { label: 'Settings', path: '/settings', icon: Settings }
+];
+
+const pipelineItems = [
   { label: 'Upload Dataset', path: '/upload', icon: Upload },
   { label: 'Clean Data', path: '/cleaning', icon: FileSearch },
   { label: 'Preview Data', path: '/preview', icon: Database },
   { label: 'Mapping Studio', path: '/mapping', icon: Layers },
-  { label: 'Validations', path: '/validations', icon: FileSearch },
-  { label: 'Import History', path: '/history', icon: Database },
-  { label: 'Settings', path: '/settings', icon: Settings }
+  { label: 'Validations', path: '/validations', icon: FileSearch }
 ];
 
 const AppShell = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, logout } = useAuth();
+  
+  const uploadId = searchParams.get('uploadId');
 
   const handleSignOut = () => {
     logout();
@@ -42,21 +48,64 @@ const AppShell = () => {
             </p>
           </div>
 
-          <nav className="space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-3 rounded-3xl px-4 py-3 text-sm transition ${active ? 'bg-cyan-500/20 text-white shadow-inner shadow-cyan-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
-                >
-                  <Icon size={18} />
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="space-y-6">
+            <div>
+              <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Main Menu</p>
+              <div className="space-y-1">
+                {generalItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 rounded-3xl px-4 py-3 text-sm transition ${active ? 'bg-cyan-500/20 text-white shadow-inner shadow-cyan-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      <Icon size={18} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Active Pipeline</p>
+              <div className="space-y-1 relative before:absolute before:inset-y-6 before:left-[25px] before:w-[2px] before:bg-white/5">
+                {pipelineItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = location.pathname === item.path;
+                  const isUpload = item.path === '/upload';
+                  const disabled = !isUpload && !uploadId;
+                  
+                  const targetPath = (uploadId && !isUpload) ? `${item.path}?uploadId=${uploadId}` : item.path;
+                  
+                  return (
+                    <div key={item.path} className="relative">
+                      <div className={`absolute left-[22px] top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-[2px] border-slate-950 ${active ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]' : (uploadId ? 'bg-emerald-500/70' : 'bg-slate-700')} z-10`} />
+                      
+                      {disabled ? (
+                        <div
+                          className="flex items-center gap-3 rounded-3xl pl-11 pr-4 py-3 text-sm text-slate-600 cursor-not-allowed select-none"
+                          title="Upload a dataset first"
+                        >
+                          <Icon size={18} className="opacity-40" />
+                          {item.label}
+                        </div>
+                      ) : (
+                        <Link
+                          to={targetPath}
+                          className={`flex items-center gap-3 rounded-3xl pl-11 pr-4 py-3 text-sm transition ${active ? 'bg-cyan-500/20 text-white shadow-inner shadow-cyan-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                        >
+                          <Icon size={18} />
+                          {item.label}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </nav>
 
           <div className="mt-10 rounded-[28px] border border-white/10 bg-slate-900/80 p-5 shadow-xl">
@@ -91,7 +140,7 @@ const AppShell = () => {
               <Link to="/upload" className="block rounded-2xl bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200 transition hover:bg-cyan-500/15">
                 Upload dataset
               </Link>
-              <Link to="/preview" className="block rounded-2xl bg-slate-900/70 px-4 py-3 text-sm text-slate-100 transition hover:bg-slate-800">
+              <Link to={uploadId ? `/preview?uploadId=${uploadId}` : "/preview"} className="block rounded-2xl bg-slate-900/70 px-4 py-3 text-sm text-slate-100 transition hover:bg-slate-800">
                 View preview
               </Link>
             </div>
