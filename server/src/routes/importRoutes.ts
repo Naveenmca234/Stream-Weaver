@@ -17,8 +17,16 @@ router.get('/', (req: AuthedRequest, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
     const stmt = db.prepare(`SELECT * FROM jobs WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`);
-    const jobs = stmt.all(userId, limit, offset);
-    res.json({ jobs });
+    const jobs = stmt.all(userId, limit, offset) as any[];
+    
+    // Map SQLite keys to the API contract expected by the frontend
+    const mappedJobs = jobs.map(job => ({
+      ...job,
+      uploadId: job.id,
+      fileName: `${job.original_filename} (${new Date(job.created_at).toLocaleString()})`
+    }));
+
+    res.json({ jobs: mappedJobs });
   } catch (error) {
     res.status(500).json({ message: 'Could not load job history', error: String(error) });
   }
@@ -28,12 +36,54 @@ router.get('/:jobId', (req: AuthedRequest, res: Response) => {
   try {
     const jobId = req.params.jobId as string;
     const stmt = db.prepare(`SELECT * FROM jobs WHERE id = ? AND user_id = ?`);
-    const job = stmt.get(jobId, req.user?.id);
+    const job = stmt.get(jobId, req.user?.id) as any;
     
     if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // Fetch mappings to derive selectedColumns and mapping configuration
+    const mappingsStmt = db.prepare(`SELECT * FROM mappings WHERE job_id = ?`);
+    const mappings = mappingsStmt.all(jobId) as any[];
+
+    job.selectedColumns = mappings.map(m => m.source_field);
+    job.mapping = mappings.map(m => {
+      let rule: any = {};
+      if (m.transform_rule) {
+        try { rule = JSON.parse(m.transform_rule); } catch(e) {}
+      }
+      return {
+        source: m.source_field,
+        dest: m.target_field,
+        transformCode: rule.customCode,
+        autoClean: rule.autoClean
+      };
+    });
+
     res.json({ job });
   } catch (error) {
     res.status(500).json({ message: 'Could not load job', error: String(error) });
+  }
+});
+
+router.patch('/:jobId/columns', (req: AuthedRequest, res: Response) => {
+  try {
+    const jobId = req.params.jobId as string;
+    const { selectedColumns } = req.body;
+
+    if (!Array.isArray(selectedColumns)) {
+      return res.status(400).json({ message: 'selectedColumns must be an array' });
+    }
+
+    if (selectedColumns.length > 0) {
+      const placeholders = selectedColumns.map(() => '?').join(',');
+      db.prepare(`DELETE FROM mappings WHERE job_id = ? AND source_field NOT IN (${placeholders})`)
+        .run(jobId, ...selectedColumns);
+    } else {
+      db.prepare(`DELETE FROM mappings WHERE job_id = ?`).run(jobId);
+    }
+
+    res.json({ message: 'Columns saved successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not save columns', error: String(error) });
   }
 });
 
