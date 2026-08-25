@@ -1142,6 +1142,18 @@ a:focus-visible {
     font-size: 25px;
   }
 
+  .upload-choice-actions {
+    width: 100%;
+  }
+
+  .upload-choice-actions .secondary-button {
+    flex: 1 1 140px;
+  }
+
+  .upload-actions .primary-button {
+    width: 100%;
+  }
+
   .upload-metadata {
     grid-template-columns: 1fr;
   }
