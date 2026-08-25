@@ -116,6 +116,12 @@ function parseCsvLine(line) {
     current.trim(),
   );
 
+  if (inQuotes) {
+    throw new Error(
+      'Unterminated quoted CSV field.',
+    );
+  }
+
   return values;
 }
 
