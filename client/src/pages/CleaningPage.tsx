@@ -262,8 +262,8 @@ const CleaningPage = () => {
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-white font-semibold">No missing values detected</p>
-              <p className="mt-2 text-slate-400">Your dataset is clean and ready for mapping.</p>
+              <p className="text-white font-semibold">No missing values found. Your dataset is clean.</p>
+              <p className="mt-2 text-slate-400">Ready for mapping.</p>
             </div>
             <button
               type="button"
