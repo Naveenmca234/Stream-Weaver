@@ -710,7 +710,7 @@ const MappingPage = () => {
                 disabled={saving || !mappingRows.length}
                 className="rounded-full bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? 'Saving…' : 'Save mapping'}
+                {saving ? 'Saving…' : 'Save Mapping'}
               </button>
               <button
                 onClick={runTransform}
