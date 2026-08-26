@@ -580,7 +580,7 @@ const MappingPage = () => {
                   type="search"
                   value={searchFilter}
                   onChange={(event) => setSearchFilter(event.target.value)}
-                  placeholder="Search fields..."
+                  placeholder="Search source fields..."
                   className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400"
                 />
               </div>
