@@ -237,8 +237,8 @@ const CleaningPage = () => {
 
       {!uploadId && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 text-slate-300">
-          <p className="text-lg font-semibold text-white">No upload selected.</p>
-          <p className="mt-3 text-slate-400">Start with an import in the Upload workspace, then return here to clean missing values before mapping.</p>
+          <p className="text-lg font-semibold text-white">Please select a dataset to continue.</p>
+          <p className="mt-3 text-slate-400">Select an existing dataset from the dropdown above or import a new file to clean missing values before mapping.</p>
           <button onClick={() => navigate('/upload')} className="mt-6 rounded-full bg-cyan-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">Go to upload</button>
         </div>
       )}
