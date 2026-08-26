@@ -183,7 +183,7 @@ const UploadPage = () => {
                 {isDragReject ? 'Unsupported file format' : isDragAccept ? 'Drop file to start upload' : isDragActive ? 'Drop your dataset here' : 'Drag & drop a CSV or JSON file'}
               </p>
               
-              <p className="mt-3 text-sm text-slate-400 max-w-xl">Accepted formats: CSV, JSON. Streaming mode protects RAM and scales effortlessly.</p>
+              <p className="mt-3 text-sm text-slate-400 max-w-xl">Accepted formats: CSV and JSON.</p>
               
               <button
                 type="button"
