@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const generalItems = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
-  { label: 'Import History', path: '/history', icon: Database },
+  { label: 'Import History & Jobs', path: '/history', icon: Database },
   { label: 'Settings', path: '/settings', icon: Settings }
 ];
 
