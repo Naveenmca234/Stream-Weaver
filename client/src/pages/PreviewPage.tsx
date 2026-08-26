@@ -73,7 +73,7 @@ const PreviewPage = () => {
           <div className="max-w-3xl">
             <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Dataset preview</p>
             <h1 className="mt-3 text-4xl font-semibold text-white">Inspect transformed output before final import.</h1>
-            <p className="mt-4 text-slate-400">Validate field transformations and confirm data shape with a clean, enterprise-quality preview experience.</p>
+            <p className="mt-4 text-slate-400">Preview transformed dataset records and verify field mappings before final import.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-full border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-200">Rows visible: {totals.rows}</div>
