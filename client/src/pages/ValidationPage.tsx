@@ -151,7 +151,7 @@ const ValidationPage = () => {
             disabled={!uploadId}
             className="rounded-full border border-white/10 bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Validate
+            Run Validation
           </button>
         </div>
       </div>
