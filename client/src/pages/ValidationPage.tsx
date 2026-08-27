@@ -222,10 +222,10 @@ const ValidationPage = () => {
       )}
 
       {!loading && !error && records.length === 0 && uploadId && (
-        <div className="mt-8 rounded-[32px] border border-emerald-500/20 bg-emerald-500/5 p-12 text-center shadow-lg backdrop-blur-xl">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 text-4xl shadow-inner">✅</div>
-          <h3 className="mt-5 text-2xl font-semibold text-emerald-400">Validation Passed</h3>
-          <p className="mt-3 text-slate-400">No validation issues were found. All <span className="text-slate-200 font-medium">{summary.totalRecords.toLocaleString()}</span> records have successfully passed quality checks.</p>
+        <div className="mt-8 rounded-[32px] border border-white/10 bg-slate-900/80 p-12 text-center shadow-lg backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/80 text-4xl shadow-inner">🔍</div>
+          <h3 className="mt-5 text-2xl font-semibold text-white">No validation results yet.</h3>
+          <p className="mt-3 text-slate-400">Run validation on a prepared dataset to see results.</p>
         </div>
       )}
 
