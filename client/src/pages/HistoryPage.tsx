@@ -415,8 +415,8 @@ const HistoryPage = () => {
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/80 text-4xl shadow-inner">
             📂
           </div>
-          <h3 className="mt-5 text-2xl font-semibold text-white">No history found</h3>
-          <p className="mt-3 text-slate-400">Upload your first dataset to start building your import history timeline.</p>
+          <h3 className="mt-5 text-2xl font-semibold text-white">No import history yet.</h3>
+          <p className="mt-3 text-slate-400">Uploaded datasets will appear here.</p>
           <button
             type="button"
             onClick={() => navigate('/upload')}
