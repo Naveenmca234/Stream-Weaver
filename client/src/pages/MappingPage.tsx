@@ -645,7 +645,7 @@ const MappingPage = () => {
                               type="text"
                               value={row.target}
                               onChange={(e) => updateMappingRow(row.rowIndex, { target: e.target.value })}
-                              placeholder="Target field name"
+                              placeholder="Enter target field"
                               className={`w-full rounded-2xl border ${row.target.trim() ? 'border-white/10' : 'border-rose-500/50'} bg-slate-900/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400`}
                             />
                           ) : (
