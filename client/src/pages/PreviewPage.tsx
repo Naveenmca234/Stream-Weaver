@@ -71,7 +71,7 @@ const PreviewPage = () => {
       <section className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Dataset preview</p>
+            <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Transformed Preview</p>
             <h1 className="mt-3 text-4xl font-semibold text-white">Inspect transformed output before final import.</h1>
             <p className="mt-4 text-slate-400">Preview transformed dataset records and verify field mappings before final import.</p>
           </div>
