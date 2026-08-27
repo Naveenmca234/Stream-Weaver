@@ -70,7 +70,7 @@ const AppShell = () => {
             </div>
 
             <div>
-              <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Pipeline Stages</p>
+              <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">PIPELINE STAGES</p>
               <div className="space-y-1 relative before:absolute before:inset-y-6 before:left-[25px] before:w-[2px] before:bg-white/5">
                 {pipelineItems.map((item) => {
                   const Icon = item.icon;
