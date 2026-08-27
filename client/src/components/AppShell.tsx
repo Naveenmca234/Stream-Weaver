@@ -3,7 +3,7 @@ import { Home, Upload, Database, Layers, Settings, FileSearch, UserCircle2, Spar
 import { useAuth } from '../contexts/AuthContext';
 
 const generalItems = [
-  { label: 'Dashboard', path: '/dashboard', icon: Home },
+  { label: 'Overview', path: '/dashboard', icon: Home },
   { label: 'Import History & Jobs', path: '/history', icon: Database },
   { label: 'Settings', path: '/settings', icon: Settings }
 ];
