@@ -70,7 +70,7 @@ const DashboardPage = () => {
 
             <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8 shadow-2xl">
               <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Quick insight</p>
-              <h2 className="mt-3 text-2xl font-semibold text-white">Latest import summary</h2>
+              <h2 className="mt-3 text-2xl font-semibold text-white">Recent Imports</h2>
               <div className="mt-6 flex flex-wrap gap-4">
                 <div className="min-w-[148px] rounded-[28px] border border-white/10 bg-slate-950/70 p-5">
                   <p className="text-sm text-slate-400">Average latency</p>
