@@ -210,7 +210,7 @@ const CleaningPage = () => {
 
       <div className="mt-4">
         <label htmlFor="datasetSelect" className="block text-sm font-medium text-slate-300">Select dataset</label>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex items-center gap-3">
           <select
             id="datasetSelect"
             value={uploadId}
