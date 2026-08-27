@@ -195,6 +195,7 @@ const UploadPage = () => {
               >
                 Choose CSV or JSON
               </button>
+              <p className="mt-4 text-xs text-slate-400">Supported files: CSV and JSON.</p>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_0.8fr]">
