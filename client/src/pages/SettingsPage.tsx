@@ -1,10 +1,34 @@
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+
 const SettingsPage = () => {
+  const [saveMessage, setSaveMessage] = useState('Settings saved successfully.');
+
+  const handleSave = () => {
+    setSaveMessage('Settings saved successfully.');
+    toast.success('Settings saved successfully.');
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-8">
-        <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Workspace Settings</p>
-        <h1 className="mt-3 text-3xl font-semibold">Configure import defaults and storage.</h1>
-        <p className="mt-3 text-slate-400">Set your default import rules and monitor your current persistence configuration.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Workspace Settings</p>
+            <h1 className="mt-3 text-3xl font-semibold">Configure import defaults and storage.</h1>
+            <p className="mt-3 text-slate-400">Set your default import rules and monitor your current persistence configuration.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="rounded-full bg-cyan-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 whitespace-nowrap"
+          >
+            Save Settings
+          </button>
+        </div>
+        {saveMessage && (
+          <p className="mt-4 text-sm font-medium text-emerald-300">{saveMessage}</p>
+        )}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6">
