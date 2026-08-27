@@ -567,7 +567,7 @@ const MappingPage = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Current mapping rules</p>
-                <p className="mt-2 text-slate-300">Use selected source columns from your uploaded dataset as the source side for mapping.</p>
+                <p className="mt-2 text-slate-300">Select source columns and map them to target fields.</p>
               </div>
               <div className="inline-flex rounded-full bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200">Detected source columns: {availableSourceFields.length}</div>
             </div>
