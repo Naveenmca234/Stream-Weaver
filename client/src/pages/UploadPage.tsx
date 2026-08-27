@@ -180,7 +180,7 @@ const UploadPage = () => {
               </div>
 
               <p className={`text-2xl font-semibold transition-colors duration-200 ${isDragReject ? 'text-rose-400' : isDragAccept ? 'text-emerald-400' : isDragActive ? 'text-cyan-400' : 'text-white'}`}>
-                {isDragReject ? 'Unsupported file format' : isDragAccept ? 'Drop file to start upload' : isDragActive ? 'Drop your dataset here' : 'Drag & drop a CSV or JSON file'}
+                {isDragReject ? 'Unsupported file format' : isDragAccept ? 'Drop file to start upload' : isDragActive ? 'Drop your dataset here' : 'Drag and drop your CSV or JSON file here.'}
               </p>
               
               <p className="mt-3 text-sm text-slate-400 max-w-xl">Accepted formats: CSV and JSON.</p>
