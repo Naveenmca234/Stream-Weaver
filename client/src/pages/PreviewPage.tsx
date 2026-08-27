@@ -109,7 +109,7 @@ const PreviewPage = () => {
       {!loading && !error && (!columns.length || !rows.length) && (
         <div className="rounded-[32px] border border-white/10 bg-slate-900/80 p-16 text-center shadow-2xl backdrop-blur-xl">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/80 text-4xl shadow-inner">👀</div>
-          <h3 className="mt-5 text-2xl font-semibold text-white">No preview data</h3>
+          <h3 className="mt-5 text-2xl font-semibold text-white">No mapping saved yet.</h3>
           <p className="mt-3 text-slate-400">Save a mapping and run the transformation to view preview data.</p>
         </div>
       )}
