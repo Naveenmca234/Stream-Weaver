@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 import app from './app.js';
 import env from './config/env.js';
+import { closeMongoDB } from './config/mongodb.js';
 
 import {
   initializeUploadLifecycle,
@@ -74,6 +75,10 @@ server.listen(
     );
 
     console.log(
+      `Mongo Batch : ${env.mongodbBatchSize} rows`,
+    );
+
+    console.log(
       '======================================',
     );
 
@@ -111,6 +116,15 @@ async function shutdown(signal) {
   } catch (error) {
     console.error(
       'Failed to close Socket.IO cleanly:',
+      error,
+    );
+  }
+
+  try {
+    await closeMongoDB();
+  } catch (error) {
+    console.error(
+      'Failed to close MongoDB cleanly:',
       error,
     );
   }
