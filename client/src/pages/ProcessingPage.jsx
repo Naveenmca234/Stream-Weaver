@@ -52,6 +52,11 @@ function getErrorMessage(error) {
   );
 }
 
+function formatFailedData(data) {
+  const text = JSON.stringify(data ?? {});
+  return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+}
+
 export default function ProcessingPage() {
   const { uploadId, jobId } = useParams();
   const navigate = useNavigate();
@@ -70,6 +75,8 @@ export default function ProcessingPage() {
     () => Math.min(100, Math.max(0, Number(job?.progressPercent) || 0)),
     [job?.progressPercent],
   );
+
+  const failedSamples = job?.failedRowSamples ?? [];
 
   useEffect(() => {
     let active = true;
@@ -184,13 +191,13 @@ export default function ProcessingPage() {
           <p className="page-eyebrow">LIVE ETL PROCESSING</p>
           <h1>
             {job.status === 'completed'
-              ? 'Processing complete'
+              ? 'Ingestion complete'
               : job.status === 'failed'
                 ? 'Processing failed'
                 : 'Processing dataset'}
           </h1>
           <p>
-            Stream metadata is delivered from Node.js to this page through Socket.IO.
+            StreamWeaver validates each transformed row, persists valid records to MongoDB in bounded batches, and delivers live progress through Socket.IO.
           </p>
         </div>
 
@@ -252,15 +259,27 @@ export default function ProcessingPage() {
           </article>
 
           <article className="processing-metric">
-            <Gauge size={19} />
-            <span>Processing speed</span>
-            <strong>{formatNumber(job.rowsPerSecond)} rows/s</strong>
+            <Database size={19} />
+            <span>MongoDB inserted</span>
+            <strong>{formatNumber(job.insertedRows ?? job.successfulRows)}</strong>
+          </article>
+
+          <article className={`processing-metric ${job.failedRows > 0 ? 'metric-warning' : ''}`}>
+            <AlertTriangle size={19} />
+            <span>Failed validation</span>
+            <strong>{formatNumber(job.failedRows)}</strong>
           </article>
 
           <article className="processing-metric">
-            <CheckCircle2 size={19} />
-            <span>Successful rows</span>
-            <strong>{formatNumber(job.successfulRows)}</strong>
+            <Activity size={19} />
+            <span>Bulk batches</span>
+            <strong>{formatNumber(job.batchesWritten)}</strong>
+          </article>
+
+          <article className="processing-metric">
+            <Gauge size={19} />
+            <span>Processing speed</span>
+            <strong>{formatNumber(job.rowsPerSecond)} rows/s</strong>
           </article>
 
           <article className="processing-metric">
@@ -284,12 +303,56 @@ export default function ProcessingPage() {
           <div className="processing-success">
             <CheckCircle2 size={20} />
             <div>
-              <strong>Stream processing finished successfully</strong>
+              <strong>MongoDB ingestion finished</strong>
               <p>
-                Week 3 processing completed without buffering the full dataset in memory.
+                {formatNumber(job.insertedRows)} rows inserted into {job.databaseName}.{job.collectionName} across {formatNumber(job.batchesWritten)} bounded bulkWrite batches. {formatNumber(job.failedRows)} rows failed validation.
               </p>
             </div>
           </div>
+        )}
+
+        {failedSamples.length > 0 && (
+          <section className="validation-results" aria-label="Validation failures">
+            <div className="validation-results-header">
+              <div>
+                <span>VALIDATION RESULTS</span>
+                <strong>Failed row preview</strong>
+              </div>
+              <span className="validation-count">
+                Showing {formatNumber(failedSamples.length)} of {formatNumber(job.failedRows)} failed rows
+              </span>
+            </div>
+
+            <div className="validation-table-wrap">
+              <table className="validation-table">
+                <thead>
+                  <tr>
+                    <th>Row</th>
+                    <th>Validation error</th>
+                    <th>Mapped data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {failedSamples.map((sample) => (
+                    <tr key={`${sample.rowNumber}-${sample.errors?.[0]?.code || 'error'}`}>
+                      <td>#{formatNumber(sample.rowNumber)}</td>
+                      <td>
+                        {(sample.errors ?? []).map((issue) => (
+                          <div className="validation-issue" key={`${issue.code}-${issue.field || ''}`}>
+                            <strong>{issue.code}</strong>
+                            <span>{issue.message}</span>
+                          </div>
+                        ))}
+                      </td>
+                      <td>
+                        <code>{formatFailedData(sample.data)}</code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
 
         <div className="processing-footer-actions">
