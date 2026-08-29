@@ -1,26 +1,57 @@
-﻿import { MongoClient } from 'mongodb';
+import { MongoClient } from 'mongodb';
 
 import env from './env.js';
 
 let client;
 let database;
+let connectingPromise;
 
 export async function connectMongoDB() {
   if (database) {
     return database;
   }
 
-  client = new MongoClient(env.mongodbUri);
+  if (!env.mongodbUri) {
+    throw new Error(
+      'MONGODB_URI is required for Week 4 ingestion. Configure it in server/.env.',
+    );
+  }
 
-  await client.connect();
+  if (!connectingPromise) {
+    connectingPromise = (async () => {
+      const nextClient = new MongoClient(env.mongodbUri, {
+        maxPoolSize: 10,
+      });
 
-  database = client.db(env.mongodbDatabase);
+      try {
+        await nextClient.connect();
 
-  await database.command({ ping: 1 });
+        const nextDatabase = nextClient.db(env.mongodbDatabase);
+        await nextDatabase.command({ ping: 1 });
 
-  console.log(MongoDB connected: );
+        client = nextClient;
+        database = nextDatabase;
 
-  return database;
+        console.log(
+          `MongoDB connected: ${env.mongodbDatabase}`,
+        );
+
+        return database;
+      } catch (error) {
+        await nextClient.close().catch(() => {});
+        throw error;
+      } finally {
+        connectingPromise = null;
+      }
+    })();
+  }
+
+  return connectingPromise;
+}
+
+export async function getIngestionCollection() {
+  const db = await connectMongoDB();
+  return db.collection(env.mongodbCollection);
 }
 
 export async function closeMongoDB() {
@@ -32,6 +63,7 @@ export async function closeMongoDB() {
 
   client = null;
   database = null;
+  connectingPromise = null;
 
   console.log('MongoDB connection closed.');
 }
