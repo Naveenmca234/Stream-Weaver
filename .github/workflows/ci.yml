@@ -10,6 +10,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      mongodb:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017
+      MONGODB_DATABASE: streamweaver_ci
+      MONGODB_COLLECTION: ingested_rows
+      MONGODB_BATCH_SIZE: 5000
+
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +70,12 @@ jobs:
         env:
           WEEK3_BACKEND_ORIGIN: http://localhost:5001
         run: npm run test:week3
+
+      - name: Run Week 4 bulk ingestion verification
+        working-directory: server
+        env:
+          WEEK4_BACKEND_ORIGIN: http://localhost:5001
+        run: npm run test:week4
 
       - name: Build frontend
         working-directory: client

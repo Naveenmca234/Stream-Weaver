@@ -1,16 +1,19 @@
-import { createReadStream } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { Writable } from 'node:stream';
+import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 
 import { parse } from 'csv-parse';
 
+import env from '../config/env.js';
+import { getIngestionCollection } from '../config/mongodb.js';
+import { emitJobEvent } from '../sockets/socketServer.js';
 import { CsvRowObjectTransform } from '../streams/csvRowObjectTransform.js';
 import { MappingTransform } from '../streams/mappingTransform.js';
-import { SandboxTransform } from '../streams/sandboxTransform.js';
+import { MongoBulkWriteSink } from '../streams/mongoBulkWriteSink.js';
 import { ProgressTransform } from '../streams/progressTransform.js';
+import { SandboxTransform } from '../streams/sandboxTransform.js';
+import { ValidationTransform } from '../streams/validationTransform.js';
 import { createHttpError } from '../utils/httpError.js';
-import { emitJobEvent } from '../sockets/socketServer.js';
 import {
   getActiveJobForUpload,
   getJob,
@@ -224,6 +227,9 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
     memoryLimitMb: 16,
     timeoutMs: 50,
   });
+  const validationTransform = new ValidationTransform();
+
+  let mongoSink = null;
 
   const progressTransform = new ProgressTransform({
     emitEveryRows: 250,
@@ -235,11 +241,17 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
 
       updateJob(jobId, {
         status: 'running',
-        stage: transformations.length > 0 ? 'sandbox-transform' : 'stream-transform',
+        stage: 'mongodb-bulk-ingestion',
         progressPercent: Math.min(99, Math.max(0, byteProgress)),
         rowsProcessed: snapshot.rowsProcessed,
-        successfulRows: snapshot.rowsProcessed,
-        failedRows: 0,
+        successfulRows: Math.max(
+          0,
+          snapshot.rowsProcessed - validationTransform.failedRows,
+        ),
+        failedRows: validationTransform.failedRows,
+        insertedRows: mongoSink?.insertedRows ?? 0,
+        batchesWritten: mongoSink?.batchesWritten ?? 0,
+        failedRowSamples: mongoSink?.failedRowSamples ?? [],
         rowsPerSecond: snapshot.rowsPerSecond,
         elapsedSeconds: snapshot.elapsedSeconds,
       });
@@ -248,30 +260,45 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
     },
   });
 
-  const sink = new Writable({
-    objectMode: true,
-    write(_row, _encoding, callback) {
-      callback();
-    },
-  });
-
   updateUploadStatus(upload.uploadId, 'processing');
   updateJob(jobId, {
     status: 'running',
-    stage: 'stream-started',
+    stage: 'mongodb-connecting',
     progressPercent: 0,
   });
   publish(jobId, 'job:started');
 
   try {
+    const collection = await getIngestionCollection();
+
+    mongoSink = new MongoBulkWriteSink({
+      collection,
+      batchSize: env.mongodbBatchSize,
+      jobId,
+      uploadId: upload.uploadId,
+      onBatch(snapshot) {
+        updateJob(jobId, {
+          status: 'running',
+          stage: 'mongodb-bulk-write',
+          insertedRows: snapshot.insertedRows,
+          batchesWritten: snapshot.batchesWritten,
+          failedRows: snapshot.failedRows,
+          failedRowSamples: mongoSink.failedRowSamples,
+        });
+
+        publish(jobId, 'job:progress');
+      },
+    });
+
     await pipeline(
       source,
       parser,
       csvObjectTransform,
       mappingTransform,
       sandboxTransform,
+      validationTransform,
       progressTransform,
-      sink,
+      mongoSink,
     );
 
     const completedAt = new Date().toISOString();
@@ -282,8 +309,11 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
       stage: 'completed',
       progressPercent: 100,
       rowsProcessed: progressTransform.rowsProcessed,
-      successfulRows: progressTransform.rowsProcessed,
-      failedRows: 0,
+      successfulRows: mongoSink.insertedRows,
+      failedRows: mongoSink.failedRows,
+      insertedRows: mongoSink.insertedRows,
+      batchesWritten: mongoSink.batchesWritten,
+      failedRowSamples: mongoSink.failedRowSamples,
       rowsPerSecond: current?.rowsPerSecond ?? 0,
       elapsedSeconds: current?.elapsedSeconds ?? 0,
       completedAt,
@@ -295,6 +325,10 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
     updateJob(jobId, {
       status: 'failed',
       stage: 'failed',
+      insertedRows: mongoSink?.insertedRows ?? 0,
+      batchesWritten: mongoSink?.batchesWritten ?? 0,
+      failedRows: mongoSink?.failedRows ?? validationTransform.failedRows,
+      failedRowSamples: mongoSink?.failedRowSamples ?? [],
       completedAt: new Date().toISOString(),
       error: {
         code: error?.code || 'PROCESSING_FAILED',
@@ -309,8 +343,9 @@ async function runProcessingJob({ jobId, upload, mappings, transformations }) {
     csvObjectTransform.destroy();
     mappingTransform.destroy();
     sandboxTransform.destroy();
+    validationTransform.destroy();
     progressTransform.destroy();
-    sink.destroy();
+    mongoSink?.destroy();
 
     if (getUpload(upload.uploadId)) {
       updateUploadStatus(upload.uploadId, 'ready');
@@ -350,6 +385,11 @@ export function startProcessingJob(uploadId, rawMappings, rawTransformations) {
     rowsProcessed: 0,
     successfulRows: 0,
     failedRows: 0,
+    insertedRows: 0,
+    batchesWritten: 0,
+    databaseName: env.mongodbDatabase,
+    collectionName: env.mongodbCollection,
+    failedRowSamples: [],
     rowsPerSecond: 0,
     elapsedSeconds: 0,
     startedAt: now,

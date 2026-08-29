@@ -6,7 +6,7 @@ StreamWeaver is a memory-safe ETL application built to process very large CSV da
 
 ## Current Status
 
-Development is complete through **Week 3**.
+The first-month implementation is complete through **Week 4**.
 
 ### Week 1 — Streaming Upload & Virtualized Preview
 - Multipart CSV streaming with Busboy
@@ -44,15 +44,29 @@ Frontend virtualization was also verified with 1,000 preview records available w
 ### Week 3 — Sandboxed Transformations & Live ETL Progress
 - `isolated-vm` JavaScript sandbox
 - Per-script memory limits and execution timeout
-- Node.js globals such as `process`, `require`, and `Buffer` not exposed
+- Node.js globals such as `process`, `require`, and `Buffer` are not exposed
 - Infinite-loop protection with `SANDBOX_TIMEOUT`
 - Streaming sandbox Transform
 - Streaming progress Transform
 - Socket.IO live job updates
 - Rows processed, rows/sec, elapsed time and completion/failure state
 - Live React processing dashboard
-- Successful 1,500-row processing verification
+- Sandbox verification: **10/10 tests passed**
+- Realtime ETL verification: **6/6 tests passed**
 - Production frontend lint/build verification
+
+### Week 4 — MongoDB Bulk Ingestion & Validation
+- MongoDB Atlas integration using the official Node.js driver
+- Validation Transform for malformed/empty transformed rows
+- Bounded MongoDB persistence with configurable **5,000-row batches**
+- `bulkWrite()` ingestion with unordered writes
+- Invalid rows excluded from MongoDB persistence without terminating the whole job
+- Failed-row samples retained for the processing result UI
+- Live Socket.IO updates include inserted rows, failed rows and batches written
+- Processing dashboard shows MongoDB inserted count, validation failures, bulk batches and failed-row preview
+- Automated Week 4 verification: **7/7 tests passed**
+- UI validation proof: **5 processed, 3 inserted, 2 failed validation, 1 bounded batch**
+- Frontend lint and production build passed
 
 ## Processing Architecture
 
@@ -73,12 +87,18 @@ Mapping Transform
    ↓
 Sandbox Transform (optional)
    ↓
+Validation Transform
+   ↓
 Progress Transform
    ↓
-Live Socket.IO progress / bounded result handling
+5,000-row bounded MongoDB buffer
+   ↓
+MongoDB bulkWrite()
+   ↓
+Socket.IO progress + final ingestion summary
 ```
 
-The current implementation deliberately avoids full-file buffering.
+The implementation avoids full-file buffering. The large-file upload/preview path and final MongoDB persistence path are both stream-oriented and bounded.
 
 ## Repository Structure
 
@@ -88,7 +108,7 @@ Stream-Weaver/
 ├── server/          Node.js + Express streaming backend
 ├── docs/            Architecture, testing and benchmark evidence
 ├── sample-data/     Local verification datasets
-├── scripts/         Week 1–3 tests and memory-audit scripts
+├── scripts/         Week 1–3 verification and memory-audit scripts
 ├── .github/         CI and code-quality workflows
 ├── .gitignore
 └── README.md
@@ -113,6 +133,21 @@ Stream-Weaver/
 - csv-parse
 - isolated-vm
 - Socket.IO
+- MongoDB Node.js Driver
+- MongoDB Atlas
+
+## Environment
+
+Create `server/.env` from `server/.env.example`. Never commit real credentials.
+
+Week 4 MongoDB configuration includes:
+
+```text
+MONGODB_URI=<your MongoDB connection string>
+MONGODB_DATABASE=streamweaver
+MONGODB_COLLECTION=ingested_rows
+MONGODB_BATCH_SIZE=5000
+```
 
 ## Local Setup
 
@@ -120,17 +155,15 @@ Install backend dependencies:
 
 ```powershell
 cd server
-npm install
+npm ci
 ```
 
 Install frontend dependencies:
 
 ```powershell
 cd ..\client
-npm install
+npm ci
 ```
-
-Create local environment files from the provided `.env.example` files. Never commit real credentials.
 
 Start backend:
 
@@ -148,29 +181,61 @@ npm run dev
 
 ## Verification
 
-Backend sandbox tests:
+Week 1:
+
+```powershell
+.\scripts\week1-tests.ps1
+```
+
+Week 2:
+
+```powershell
+.\scripts\week2-tests.ps1
+```
+
+Week 3 sandbox:
 
 ```powershell
 cd server
 npm run test:sandbox
 ```
 
-Frontend Week 3 realtime verification:
+Week 3 realtime:
 
 ```powershell
 cd client
+$env:WEEK3_BACKEND_ORIGIN="http://localhost:5000"
 npm run test:week3
+```
+
+Week 4 MongoDB bulk ingestion:
+
+```powershell
+cd server
+npm run test:week4
 ```
 
 Frontend quality/build:
 
 ```powershell
+cd client
 npm run lint
 npm run build
 ```
 
-Week 1, Week 2 and mid-project verification scripts are available under `scripts/`.
+## Verified First-Month Result
 
-## Next Planned Phase
+StreamWeaver now supports the complete first-month ETL flow:
 
-Week 4 will add persistent MongoDB ingestion using bounded `bulkWrite()` batches after the existing streaming, mapping, sandbox and realtime-processing layers are verified as the stable baseline.
+```text
+Upload large CSV
+→ bounded preview
+→ map destination fields
+→ optional sandboxed JavaScript transformations
+→ validate transformed rows
+→ stream live processing progress
+→ persist valid rows to MongoDB in bounded bulk batches
+→ report inserted/failed rows and validation errors
+```
+
+Week 1 through Week 4 are complete and verified as the stable first-month baseline.

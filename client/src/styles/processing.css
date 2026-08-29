@@ -183,7 +183,7 @@
 
 .processing-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding: 20px;
 }
@@ -208,6 +208,12 @@
   color: #d5deea;
   font-size: 17px;
   letter-spacing: -0.03em;
+}
+
+.processing-metric.metric-warning {
+  color: #ff9ca5;
+  border-color: rgba(255, 107, 120, 0.24);
+  background: rgba(255, 107, 120, 0.05);
 }
 
 .processing-success,
@@ -243,6 +249,118 @@
   color: inherit;
   font-size: 9px;
   opacity: 0.82;
+}
+
+.validation-results {
+  margin: 0 20px 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 107, 120, 0.2);
+  border-radius: 12px;
+  background: #0b111a;
+}
+
+.validation-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.validation-results-header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.validation-results-header span {
+  color: #8b98aa;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.validation-results-header strong {
+  color: #e5eaf2;
+  font-size: 11px;
+}
+
+.validation-count {
+  border: 1px solid rgba(255, 107, 120, 0.2);
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #ff9ca5 !important;
+  background: rgba(255, 107, 120, 0.06);
+  letter-spacing: 0 !important;
+  white-space: nowrap;
+}
+
+.validation-table-wrap {
+  overflow-x: auto;
+}
+
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.validation-table th,
+.validation-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.validation-table th {
+  color: #6f7d91;
+  background: rgba(255, 255, 255, 0.015);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.validation-table td {
+  color: #aeb8c7;
+  font-size: 9px;
+}
+
+.validation-table tbody tr {
+  background: rgba(255, 107, 120, 0.025);
+}
+
+.validation-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.validation-issue {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 7px;
+}
+
+.validation-issue:last-child {
+  margin-bottom: 0;
+}
+
+.validation-issue strong {
+  color: #ff9ca5;
+  font-size: 9px;
+}
+
+.validation-issue span {
+  color: #9aa6b7;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.validation-table code {
+  color: #8390a4;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 8px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .processing-footer-actions {
@@ -292,7 +410,8 @@
   .processing-header,
   .processing-file-row,
   .processing-progress-copy,
-  .processing-footer-actions {
+  .processing-footer-actions,
+  .validation-results-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -304,5 +423,9 @@
 
   .processing-metrics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .validation-count {
+    width: fit-content;
   }
 }
