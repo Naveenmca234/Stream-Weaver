@@ -1,4 +1,4 @@
-﻿ import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -40,7 +40,19 @@ const env = Object.freeze({
     'UPLOAD_CLEANUP_INTERVAL_MINUTES',
     10,
   ),
+
+  mongodbUri: process.env.MONGODB_URI?.trim() || '',
+
+  mongodbDatabase:
+    process.env.MONGODB_DATABASE?.trim() || 'streamweaver',
+
+  mongodbBatchSize: readInteger(
+    'MONGODB_BATCH_SIZE',
+    5000,
+  ),
+
+  mongodbCollection:
+    process.env.MONGODB_COLLECTION?.trim() || 'ingested_rows',
 });
 
 export default env;
-
